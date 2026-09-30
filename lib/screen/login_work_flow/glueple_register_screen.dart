@@ -5,9 +5,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:lottie/lottie.dart';
 import 'package:shopperxm_flutter/screen/faq_term_and_condition/terms_screen.dart';
 import 'package:shopperxm_flutter/screen/landing_screen.dart';
 import 'package:shopperxm_flutter/screen/login_work_flow/account_create_screen.dart';
+import 'package:shopperxm_flutter/screen/login_work_flow/login_screen.dart';
 import 'package:shopperxm_flutter/screen/login_work_flow/login_with_otp_screen.dart';
 import 'package:shopperxm_flutter/screen/profile_details/address_details_screen.dart';
 import 'package:shopperxm_flutter/screen/profile_details/payment_details_screen.dart';
@@ -199,45 +201,199 @@ class LoginState extends State<GlupleRegisterScreen> {
       return;
     }
     _formKeyLogin.currentState!.save();
-    forgotPassword(context);
+    verifyGluepleEmail(context);
 
   }
 
 
-  forgotPassword(BuildContext context) async {
+  Future<void> verifyGluepleEmail(BuildContext context) async {
     FocusScope.of(context).unfocus();
     APIDialog.showAlertDialog(context, 'Please wait...');
-    var data = {
+    final data = {
       "email": usernameController.text,
-
     };
     print(data);
-
-    ApiBaseHelper helper = ApiBaseHelper();
-    var response = await helper.postAPI('resetPassword', data, context);
+    final helper = ApiBaseHelper();
+    final response =
+    await helper.postAPIGlueple('get-emp-details', data, context);
     Navigator.pop(context);
-    var responseJSON = json.decode(response.body);
-
-    if(responseJSON["status"]==1)
-      {
-        Toast.show(responseJSON["message"],
-            duration: Toast.lengthLong,
-            gravity: Toast.bottom,
-            backgroundColor: Colors.green);
-        Navigator.pop(context);
-
+    final responseJSON = json.decode(response.body);
+    final int code = responseJSON['code'] ?? 0;
+    final bool isError = responseJSON['error'] ?? true;
+    final String msg = responseJSON['message']?.toString() ??
+        "Something went wrong. Please try again later";
+    // ❌ Common error handler
+    void showError() {
+      Toast.show(msg,
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.red);
+    }
+    // ✅ Main logic
+    if (!isError && code == 200) {
+      final dataList = (responseJSON['data'] as List?) ?? [];
+      if (dataList.isNotEmpty) {
+        createAccountWithGluple(dataList);
+        return;
       }
-    else
-      {
-        Toast.show(responseJSON["message"],
+    }
+
+    // ❌ All failure cases
+    showError();
+    print(responseJSON);
+  }
+
+
+  createAccountWithGluple(List<dynamic> dataList) async{
+    APIDialog.showAlertDialog(context, 'Creating Account using glueple...');
+    try{
+      final empId = dataList[0]['emp_id']?.toString() ?? "";
+      final officialEmail = dataList[0]['official_email']?.toString() ?? "";
+      final personalEmail = dataList[0]['personal_email']?.toString() ?? "";
+      final phone = dataList[0]['phone']?.toString() ?? "";
+      final fullName = dataList[0]['full_name']?.toString() ?? "";
+      final maritalStatus = dataList[0]['marital_status']?.toString() ?? "";
+      final birthDate = dataList[0]['birth_date']?.toString() ?? "";
+      final gender = dataList[0]['gender']?.toString() ?? "";
+      final aadhaarNo = dataList[0]['aadhaar_no']?.toString() ?? "";
+      final permanentAddress = dataList[0]['permanent_address']?.toString() ?? "";
+      final permanentCity = dataList[0]['permanent_city']?.toString() ?? "";
+      final permanentState = dataList[0]['permanent_state']?.toString() ?? "";
+      final permanentPin = dataList[0]['permanent_pin']?.toString() ?? "";
+      final presentAddress = dataList[0]['present_address']?.toString() ?? "";
+      final presentCity = dataList[0]['present_city']?.toString() ?? "";
+      final presentState = dataList[0]['present_state']?.toString() ?? "";
+      final presentPin = dataList[0]['present_pin']?.toString() ?? "";
+      final aadhaarCardImg = dataList[0]['aadhaar_card_img']?.toString() ?? "";
+      final accountNumber = dataList[0]['account_number']?.toString() ?? "";
+      final ifscCode = dataList[0]['ifsc_code']?.toString() ?? "";
+      final accountHolderName = dataList[0]['account_holder_name']?.toString() ?? "";
+      final chequeImg = dataList[0]['cheque_img']?.toString() ?? "";
+      final panNo = dataList[0]['pan_no']?.toString() ?? "";
+      final panCardImg = dataList[0]['pan_card_img']?.toString() ?? "";
+
+      final data = {
+        "emp_id": empId,
+        "official_email": officialEmail,
+        "phone": phone,
+        "full_name": fullName,
+        "marital_status": maritalStatus,
+        "birth_date": birthDate,
+        "gender": gender,
+        "aadhaar_no": aadhaarNo,
+
+        "permanent_address": permanentAddress,
+        "permanent_city": permanentCity,
+        "permanent_state": permanentState,
+        "permanent_pin": permanentPin,
+
+        "present_address": presentAddress,
+        "present_city": presentCity,
+        "present_state": presentState,
+        "present_pin": presentPin,
+
+        "aadhaar_card_img": aadhaarCardImg,
+
+        "account_number": accountNumber,
+        "ifsc_code": ifscCode,
+        "account_holder_name": accountHolderName,
+        "cheque_img": chequeImg,
+
+        "pan_no": panNo,
+        "pan_card_img": panCardImg,
+      };
+
+      print(data);
+      final helper = ApiBaseHelper();
+      final response = await helper.postAPI('save-update-inhouse', data, context);
+      Navigator.pop(context);
+      final responseJSON = json.decode(response.body);
+      final int code = responseJSON['code'] ?? 0;
+      final bool isError = responseJSON['error'] ?? true;
+      final String msg = responseJSON['message']?.toString() ??
+          "Something went wrong. Please try again later";
+      void showError() {
+        Toast.show(msg,
             duration: Toast.lengthLong,
             gravity: Toast.bottom,
             backgroundColor: Colors.red);
       }
+      // ✅ Main logic
+      if (!isError && code == 200) {
+        showAccountCreatedDialog(context, msg);
+      }
+
+      // ❌ All failure cases
+      showError();
 
 
-    print(responseJSON);
 
+    }catch(e){
+      Navigator.of(context).pop();
+      Toast.show("Unexpected error occurred",
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.red);
+    }
+
+  }
+
+  void showAccountCreatedDialog(BuildContext context, String msg) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 🔹 Animation
+              Lottie.asset(
+                'assets/shopper_done_anim.json',
+                height: 150,
+                repeat: true,
+              ),
+
+              const SizedBox(height: 10),
+
+              // 🔹 Message
+              Text(
+                msg,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // 🔹 Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                          (Route<dynamic> route) => false,
+                    );
+
+                  },
+                  child: const Text("Login"),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
 

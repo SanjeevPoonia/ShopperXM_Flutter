@@ -205,42 +205,80 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
                       int isImageRequired=0;
                       int imageUploadStatus=0;
 
-                      isAudioRequired=searchList[pos]["is_audio_required"];
-                      isVideoRequired=searchList[pos]["is_video_required"];
-                      audioUploadStatus=searchList[pos]["overall_audio_status"];
-                      videoUploadedStatus=searchList[pos]["overall_video_status"];
-                      isImageRequired=searchList[pos]["is_multiple_image_required"];
-                      imageUploadStatus=searchList[pos]["overall_image_status"];
+                      isAudioRequired=searchList[pos]["is_audio_required"]??0;
+                      isVideoRequired=searchList[pos]["is_video_required"]??0;
+                      audioUploadStatus=searchList[pos]["overall_audio_status"]??0;
+                      videoUploadedStatus=searchList[pos]["overall_video_status"]??0;
+                      isImageRequired=searchList[pos]["is_multiple_image_required"]??0;
+                      imageUploadStatus=searchList[pos]["overall_image_status"]??0;
+                      String storeId=searchList[pos]["store_id"]?.toString()??"";
+                      bool showSubmitButton = false;
 
 
                       if(isAudioRequired==1 && isVideoRequired==1 && isImageRequired==1){
 
                         btnText="Upload Audio / Video / Images";
+                        if (audioUploadStatus == 1 &&
+                            videoUploadedStatus == 1 &&
+                            imageUploadStatus == 1) {
+                          showSubmitButton = true;
+                        }
 
-                      }else if(isAudioRequired==1 && isVideoRequired==1 && isImageRequired==0){
+                      }
+                      else if(isAudioRequired==1 && isVideoRequired==1 && isImageRequired==0){
 
                         btnText="Upload Audio / Video";
+                        if (audioUploadStatus == 1 &&
+                            videoUploadedStatus == 1) {
+                          showSubmitButton = true;
+                        }
 
 
-                      }else if(isAudioRequired==1 && isVideoRequired==0 && isImageRequired==1){
+                      }
+                      else if(isAudioRequired==1 && isVideoRequired==0 && isImageRequired==1){
+
                         btnText="Upload Audio / Image";
+                        if (audioUploadStatus == 1 &&
+                            imageUploadStatus == 1) {
+                          showSubmitButton = true;
+                        }
 
 
-                      }else if(isAudioRequired==0 && isVideoRequired==1 && isImageRequired==1){
+                      }
+                      else if(isAudioRequired==0 && isVideoRequired==1 && isImageRequired==1){
                         btnText="Upload Video / Image";
+                        if (videoUploadedStatus == 1 &&
+                            imageUploadStatus == 1) {
+                          showSubmitButton = true;
+                        }
 
-
-                      }else if(isAudioRequired==1 && isVideoRequired==0 && isImageRequired==0){
+                      }
+                      else if(isAudioRequired==1 && isVideoRequired==0 && isImageRequired==0){
 
                         btnText="Upload Audio";
+                        if (audioUploadStatus == 1) {
+                          showSubmitButton = true;
+                        }
 
-                      }else if(isAudioRequired==0 && isVideoRequired==1 && isImageRequired==0){
+                      }
+                      else if(isAudioRequired==0 && isVideoRequired==1 && isImageRequired==0){
 
                         btnText="Upload Video";
+                        if (videoUploadedStatus == 1) {
+                          showSubmitButton = true;
+                        }
 
-                      }else if(isAudioRequired==0 && isVideoRequired==0 && isImageRequired==1){
+
+                      }
+                      else if(isAudioRequired==0 && isVideoRequired==0 && isImageRequired==1){
                         btnText="Upload Images";
-
+                        if (imageUploadStatus == 1) {
+                          showSubmitButton = true;
+                        }
+                      }else if (isAudioRequired == 0 &&
+                          isVideoRequired == 0 &&
+                          isImageRequired == 0) {
+                        showSubmitButton = true;
                       }
 
 
@@ -438,9 +476,6 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
                                 ),
 
                                 SizedBox(height: 10),
-
-
-
                                 InkWell(
                                   onTap: (){
 
@@ -495,8 +530,46 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
                                     ),
                                   ),
                                 ),
+                                if (showSubmitButton)
+                                  Column(
+                                    children: [
+                                      const SizedBox(height: 10),
 
-                                SizedBox(height: 20)
+                                      InkWell(
+                                        onTap: () {
+
+                                          finalSubmitTheAudit(context, storeId);
+                                        },
+                                        child: Container(
+                                          height: 48,
+                                          width: double.infinity,
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.themeColor,
+                                            borderRadius: BorderRadius.circular(4),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black12.withOpacity(0.3),
+                                                offset: const Offset(0.0, 5.0),
+                                                blurRadius: 6.0,
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Center(
+                                            child: Text(
+                                              "Final Submit",
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                SizedBox(height: 20,),
                               ],
                             ),
                           ),
@@ -529,42 +602,81 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
                     int isImageRequired=0;
                     int imageUploadStatus=0;
 
-                    isAudioRequired=artifactPendingList[pos]["is_audio_required"];
-                    isVideoRequired=artifactPendingList[pos]["is_video_required"];
-                    audioUploadStatus=artifactPendingList[pos]["overall_audio_status"];
-                    videoUploadedStatus=artifactPendingList[pos]["overall_video_status"];
-                    isImageRequired=artifactPendingList[pos]["is_multiple_image_required"];
-                    imageUploadStatus=artifactPendingList[pos]["overall_image_status"];
+                    isAudioRequired=artifactPendingList[pos]["is_audio_required"]??0;
+                    isVideoRequired=artifactPendingList[pos]["is_video_required"]??0;
+                    audioUploadStatus=artifactPendingList[pos]["overall_audio_status"]??0;
+                    videoUploadedStatus=artifactPendingList[pos]["overall_video_status"]??0;
+                    isImageRequired=artifactPendingList[pos]["is_multiple_image_required"]??0;
+                    imageUploadStatus=artifactPendingList[pos]["overall_image_status"]??0;
+                    String storeId=artifactPendingList[pos]["store_id"]?.toString()??"";
+
+                    bool showSubmitButton = false;
 
 
                     if(isAudioRequired==1 && isVideoRequired==1 && isImageRequired==1){
 
                       btnText="Upload Audio / Video / Images";
+                      if (audioUploadStatus == 1 &&
+                          videoUploadedStatus == 1 &&
+                          imageUploadStatus == 1) {
+                        showSubmitButton = true;
+                      }
 
-                    }else if(isAudioRequired==1 && isVideoRequired==1 && isImageRequired==0){
+                    }
+                    else if(isAudioRequired==1 && isVideoRequired==1 && isImageRequired==0){
 
                       btnText="Upload Audio / Video";
+                      if (audioUploadStatus == 1 &&
+                          videoUploadedStatus == 1) {
+                        showSubmitButton = true;
+                      }
 
 
-                    }else if(isAudioRequired==1 && isVideoRequired==0 && isImageRequired==1){
+                    }
+                    else if(isAudioRequired==1 && isVideoRequired==0 && isImageRequired==1){
+
                       btnText="Upload Audio / Image";
+                      if (audioUploadStatus == 1 &&
+                          imageUploadStatus == 1) {
+                        showSubmitButton = true;
+                      }
 
 
-                    }else if(isAudioRequired==0 && isVideoRequired==1 && isImageRequired==1){
-                       btnText="Upload Video / Image";
+                    }
+                    else if(isAudioRequired==0 && isVideoRequired==1 && isImageRequired==1){
+                      btnText="Upload Video / Image";
+                      if (videoUploadedStatus == 1 &&
+                          imageUploadStatus == 1) {
+                        showSubmitButton = true;
+                      }
 
-
-                    }else if(isAudioRequired==1 && isVideoRequired==0 && isImageRequired==0){
+                    }
+                    else if(isAudioRequired==1 && isVideoRequired==0 && isImageRequired==0){
 
                       btnText="Upload Audio";
+                      if (audioUploadStatus == 1) {
+                        showSubmitButton = true;
+                      }
 
-                    }else if(isAudioRequired==0 && isVideoRequired==1 && isImageRequired==0){
+                    }
+                    else if(isAudioRequired==0 && isVideoRequired==1 && isImageRequired==0){
 
                       btnText="Upload Video";
+                      if (videoUploadedStatus == 1) {
+                        showSubmitButton = true;
+                      }
 
-                    }else if(isAudioRequired==0 && isVideoRequired==0 && isImageRequired==1){
-                     btnText="Upload Images";
 
+                    }
+                    else if(isAudioRequired==0 && isVideoRequired==0 && isImageRequired==1){
+                      btnText="Upload Images";
+                      if (imageUploadStatus == 1) {
+                        showSubmitButton = true;
+                      }
+                    }else if (isAudioRequired == 0 &&
+                        isVideoRequired == 0 &&
+                        isImageRequired == 0) {
+                      showSubmitButton = true;
                     }
 
 
@@ -754,9 +866,6 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
                               ),
 
                               SizedBox(height: 10),
-
-
-
                               InkWell(
                                 onTap: (){
 
@@ -811,6 +920,45 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
                                   ),
                                 ),
                               ),
+                              if (showSubmitButton)
+                                Column(
+                                  children: [
+                                    const SizedBox(height: 10),
+
+                                    InkWell(
+                                      onTap: () {
+
+                                        finalSubmitTheAudit(context, storeId);
+
+                                      },
+                                      child: Container(
+                                        height: 48,
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.themeColor,
+                                          borderRadius: BorderRadius.circular(4),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black12.withOpacity(0.3),
+                                              offset: const Offset(0.0, 5.0),
+                                              blurRadius: 6.0,
+                                            ),
+                                          ],
+                                        ),
+                                        child: const Center(
+                                          child: Text(
+                                            "Final Submit",
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
 
                               SizedBox(height: 20)
                             ],
@@ -1123,7 +1271,6 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
       },
     );
   }
-
   void uploadFilesBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -1439,16 +1586,15 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
     var response = await helper.postAPIWithHeader('getVideoPendingAuditList', data, context);
     var responseJSON = json.decode(response.body);
     print(responseJSON['data']);
+    artifactPendingList.clear();
     artifactPendingList = responseJSON['data'];
     setState(() {
       isLoading=false;
     });
 
   }
-
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     getArtifactPendingAuditList(context);
   }
@@ -1459,7 +1605,6 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
     return dis.toString();
 
   }
-
   void _runFilter(String enteredKeyword) {
     List<dynamic> results = [];
     if (enteredKeyword.isEmpty) {
@@ -1520,5 +1665,30 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
     setState(() {
       searchList = results;
     });
+  }
+
+  finalSubmitTheAudit(BuildContext context,String storeId) async {
+
+    setState(() {
+      isLoading=true;
+    });
+    var data = {
+      "store_id":storeId,
+    };
+    print(data);
+    ApiBaseHelper helper = ApiBaseHelper();
+    var response = await helper.postAPIWithHeader('auditFinalSubmit', data, context);
+    var responseJSON = json.decode(response.body);
+    print(responseJSON['status']);
+    int status=responseJSON['status']??0;
+    String msg=responseJSON['message']?.toString()??"";
+    setState(() {
+      isLoading=false;
+    });
+    if(status==1){
+      Toast.show(msg,backgroundColor: Colors.green,duration: Toast.lengthLong);
+      getArtifactPendingAuditList(context);
+    }
+
   }
 }

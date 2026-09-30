@@ -123,9 +123,9 @@ class MenuState extends State<RecordVideoScreen> {
                     children: [
                       Column(
                         children: [
-                          Image.asset("assets/ola_ic.png",
+                          /*Image.asset("assets/ola_ic.png",
                               width: 30, height: 30),
-                          SizedBox(height: 15),
+                          SizedBox(height: 15),*/
 
 
                           Image.asset("assets/home_clock.png",

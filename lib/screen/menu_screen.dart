@@ -8,15 +8,18 @@ import 'package:lottie/lottie.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shopperxm_flutter/features/payment/screens/payment_screen.dart';
 import 'package:shopperxm_flutter/screen/audits/pending_audits.dart';
 import 'package:shopperxm_flutter/screen/bottom_tabs/assigned_tab.dart';
 import 'package:shopperxm_flutter/screen/payment_earned/payment_earned_screen.dart';
 import 'package:shopperxm_flutter/screen/reimbursement/claim_reimbursement.dart';
+import 'package:shopperxm_flutter/screen/self_training/shopper_assigned_training_screen.dart';
 
 import 'package:toast/toast.dart';
 import 'package:shopperxm_flutter/screen/zoom_scaffold.dart' as MEN;
 import '../network/Utils.dart';
 import '../network/api_helper.dart';
+import '../training/pages/training_list_screen.dart';
 import '../utils/app_modal.dart';
 import '../utils/app_theme.dart';
 import '../widgets/sidebar_widget.dart';
@@ -37,6 +40,8 @@ class MenuScreen extends StatefulWidget {
 
 class MenuState extends State<MenuScreen> {
   String emailID = '';
+  String name='';
+  String userType="";
   @override
   Widget build(BuildContext context) {
     ToastContext().init(context);
@@ -104,8 +109,8 @@ class MenuState extends State<MenuScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
 
-                                  Text(emailID,
-                                      style: TextStyle(
+                                  Text(name,
+                                      style: const TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w600,
                                           color: Colors.white)),
@@ -169,11 +174,6 @@ class MenuState extends State<MenuScreen> {
                                   'Home',
                                   'assets/home_ic.png'
                               ),
-
-
-
-
-//artifact_ic
                               InkWell(
                                 onTap: (){
 
@@ -193,6 +193,7 @@ class MenuState extends State<MenuScreen> {
                               ),
 
 
+                              userType!="26"?
                               InkWell(
                                 onTap: (){
 
@@ -209,11 +210,7 @@ class MenuState extends State<MenuScreen> {
                                     'Open Audits',
                                     'assets/assig_ic.png'
                                 ),
-                              ),
-
-
-
-
+                              ):Container(),
                               InkWell(
                                 onTap: (){
 
@@ -245,8 +242,6 @@ class MenuState extends State<MenuScreen> {
                                     'assets/pending_ic.png'
                                 ),
                               ),
-
-
                               InkWell(
                                 onTap: (){
 
@@ -264,10 +259,6 @@ class MenuState extends State<MenuScreen> {
                                     'assets/artifact_ic.png'
                                 ),
                               ),
-
-
-
-
                               InkWell(
                                 onTap: (){
                                   Provider.of<MEN.MenuController>(context,
@@ -283,12 +274,14 @@ class MenuState extends State<MenuScreen> {
                                 ),
                               ),
 
-//claim_ic
+
+                              userType!="26"?
                               SideBarWidget(
                                   'Feedback',
                                   'assets/feedback2.png'
-                              ),
+                              ):Container(),
 
+                              userType!="26"?
                               InkWell(
                                 onTap: (){
                                   Provider.of<MEN.MenuController>(context,
@@ -304,22 +297,56 @@ class MenuState extends State<MenuScreen> {
                                     'Claim Reimbursement',
                                     'assets/claim_ic.png'
                                 ),
-                              ),
+                              ):Container(),
 
-                              AppModel.userType=="2"?Container():
-
-
-
+                              userType!="26"?
                               Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 child: Text("Training & Certificates",
                                     style: TextStyle(
                                         fontSize: 13,
                                         color: Colors.white.withOpacity(0.84))),
-                              ),
+                              ):Container(),
+
+                             /* AppModel.userType=="2"?Container():
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                child: Text("Training & Certificates",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white.withOpacity(0.84))),
+                              ),*/
 
 
 
+                              userType!="26"?
+                              InkWell(
+                                onTap: (){
+                                  Provider.of<MEN.MenuController>(context,
+                                      listen: false)
+                                      .toggle();
+
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => TrainingListScreen(
+                                        email: emailID,
+                                        trainingType: 0,
+                                      ),
+                                    ),
+                                  );
+                                  //Navigator.push(context, PageTransition(type: PageTransitionType.leftToRight, child: ShopperAssignedTrainingScreen(trainingType: "0")));
+
+
+
+                                },
+                                child: SideBarWidget(
+                                    'Assigned',
+                                    'assets/incomplete_ic.png'
+                                ),
+                              ):Container(),
+
+
+                              /*
                               AppModel.userType=="2"?Container():
                               InkWell(
                                 onTap: (){
@@ -335,10 +362,37 @@ class MenuState extends State<MenuScreen> {
                                     'Incompleted',
                                     'assets/incomplete_ic.png'
                                 ),
-                              ),
+                              ),*/
+
+                              userType!="26"?
+                              InkWell(
+                                onTap: (){
+                                  Provider.of<MEN.MenuController>(context,
+                                      listen: false)
+                                      .toggle();
 
 
-                              AppModel.userType=="2"?Container():
+                                 // Navigator.push(context, PageTransition(type: PageTransitionType.leftToRight, child: ShopperAssignedTrainingScreen(trainingType: "1")));
+
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => TrainingListScreen(
+                                        email: emailID,
+                                        trainingType: 1,
+                                      ),
+                                    ),
+                                  );
+
+                                },
+                                child:  SideBarWidget(
+                                    'Completed',
+                                    'assets/complete_ic.png'
+                                ),
+                              ):Container(),
+
+
+
+                             /* AppModel.userType=="2"?Container():
                               InkWell(
                                 onTap: (){
                                   Provider.of<MEN.MenuController>(context,
@@ -353,21 +407,57 @@ class MenuState extends State<MenuScreen> {
                                     'Completed',
                                     'assets/complete_ic.png'
                                 ),
-                              ),
+                              ),*/
 
-
-
-                              AppModel.userType=="1"?Container():
-
+                              userType!="26"?
                               Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 child: Text("Payment",
                                     style: TextStyle(
                                         fontSize: 13,
                                         color: Colors.white.withOpacity(0.84))),
-                              ),
-                              AppModel.userType=="1"?Container():
+                              ):Container(),
 
+
+                              /*AppModel.userType=="1"?Container():
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                child: Text("Payment",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white.withOpacity(0.84))),
+                              ),*/
+
+
+                              userType!="26"?
+                              InkWell(
+                                onTap: (){
+                                  Provider.of<MEN.MenuController>(context,
+                                      listen: false)
+                                      .toggle();
+
+                                  //Navigator.push(context, PageTransition(type: PageTransitionType.leftToRight, child: PaymentEarnedScreen()));
+                                  Navigator.push(context,
+                                      PageTransition(
+                                          type: PageTransitionType.leftToRight,
+                                          child: PaymentScreen(
+                                            userId: AppModel.userID,
+                                            accessToken: AppModel.token,
+                                          )
+
+                                      )
+                                  );
+
+
+                                },
+                                child: SideBarWidget(
+                                    'Payment Earned',
+                                    'assets/payment_ic.png'
+                                ),
+                              ):Container(),
+
+
+                              /*AppModel.userType=="1"?Container():
                               InkWell(
                                 onTap: (){
                                   Provider.of<MEN.MenuController>(context,
@@ -382,8 +472,10 @@ class MenuState extends State<MenuScreen> {
                                     'Payment Earned',
                                     'assets/payment_ic.png'
                                 ),
-                              ),
-                              AppModel.userType=="1"?Container():
+                              ),*/
+
+
+                             /* userType!="26"?
                               InkWell(
                                 onTap: (){
 
@@ -400,17 +492,24 @@ class MenuState extends State<MenuScreen> {
                                     'assets/invoice_ic.png'
                                 ),
 
-                              ),
+                              ):Container(),*/
 
 
 
+
+
+
+
+                              userType!="26"?
                               Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 child: Text("Communicate",
                                     style: TextStyle(
                                         fontSize: 13,
                                         color: Colors.white.withOpacity(0.84))),
-                              ),
+                              ):Container(),
+
+                              userType!="26"?
                               InkWell(
                                 onTap: (){
 
@@ -427,7 +526,9 @@ class MenuState extends State<MenuScreen> {
                                     'assets/faq_ic.png'
                                 ),
 
-                              ),
+                              ):Container(),
+
+                              userType!="26"?
                               InkWell(
                                 onTap: (){
                                   termAndConditionBottomSheet(context);
@@ -438,7 +539,7 @@ class MenuState extends State<MenuScreen> {
                                     'assets/terms_ic.png'
                                 ),
 
-                              ),
+                              ):Container(),
 
 
                             ])),
@@ -780,7 +881,15 @@ class MenuState extends State<MenuScreen> {
   }
   Future<void> getValue() async {
     String? email = await MyUtils.getSharedPreferences("email");
+    String? nme = await MyUtils.getSharedPreferences("name");
+    String? uType= await MyUtils.getSharedPreferences("usertype");
     emailID = email ?? "NA";
+    name = nme ?? "NA";
+    userType=uType ??"";
+    print("User Type $userType");
     print(email);
+    setState(() {
+
+    });
   }
 }

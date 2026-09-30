@@ -9,20 +9,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:lottie/lottie.dart';
 import 'package:mime/mime.dart';
-import 'package:page_transition/page_transition.dart';
-import 'package:percent_indicator/linear_percent_indicator.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shopperxm_flutter/screen/landing_screen.dart';
-import 'package:shopperxm_flutter/screen/mcq_test/test_mcq1.dart';
-import 'package:shopperxm_flutter/screen/self_training/training_step3.dart';
 import 'package:shopperxm_flutter/utils/app_modal.dart';
 import 'package:shopperxm_flutter/utils/app_theme.dart';
-
 import 'package:toast/toast.dart';
 import 'package:shopperxm_flutter/screen/zoom_scaffold.dart' as MEN;
 import 'package:video_player/video_player.dart';
@@ -32,6 +23,8 @@ import '../../network/api_dialog.dart';
 import '../../network/constants.dart';
 import '../../network/loader.dart';
 import '../../widgets/appbar_widget.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:path_provider/path_provider.dart';
 
 class UploadFilesScreen extends StatefulWidget {
   final int isVideoRequired;
@@ -382,8 +375,12 @@ class MenuState extends State<UploadFilesScreen> {
                                   RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(4.0),
                               ))),
-                          onPressed: () {
-                            if (mediaFileURI.length != 0) {
+                          onPressed: ()async {
+                            if (mediaFileURI.isEmpty) {
+                              return;
+                            }
+                            await uploadAllArtifactsInBackground();
+                            /*if (mediaFileURI.length != 0) {
                               fileUploading = true;
                               setState(() {});
                               for (int i = 0; i < mediaFileURI.length; i++) {
@@ -402,7 +399,7 @@ class MenuState extends State<UploadFilesScreen> {
                                   uploadMedia("1", i);
                                 }
                               }
-                            }
+                            }*/
                           },
                           child: const Text(
                             'Upload',
@@ -470,11 +467,273 @@ class MenuState extends State<UploadFilesScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
   }
 
-  uploadInBackground(int index) async {
+  Future<void> uploadAllArtifactsInBackground() async {
+    // ---------------------------------------------------------
+    // 1. Check notification permission
+    // ---------------------------------------------------------
+
+    final FlutterLocalNotificationsPlugin notifications =
+    FlutterLocalNotificationsPlugin();
+
+    const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('app_ic');
+
+    const DarwinInitializationSettings iosSettings =
+    DarwinInitializationSettings();
+
+    const InitializationSettings initializationSettings =
+    InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await notifications.initialize(initializationSettings);
+
+    final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+    notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    final bool? permissionGranted =
+    await androidPlugin?.areNotificationsEnabled();
+
+    print("Notification permission status: $permissionGranted");
+
+    if (permissionGranted != true) {
+      final bool? requestResult =
+      await androidPlugin?.requestNotificationsPermission();
+
+      print("Notification permission request result: $requestResult");
+
+      if (requestResult != true) {
+        Toast.show(
+          "Notification permission is required for background upload.",
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.red,
+        );
+
+        return;
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 2. Create artifact list
+    // ---------------------------------------------------------
+
+    final List<Map<String, dynamic>> artifacts = [];
+
+    for (final String filePath in mediaFileURI) {
+      final File file = File(filePath);
+
+      if (!await file.exists()) {
+        print("======================================");
+        print("ERROR: FILE DOES NOT EXIST");
+        print("Path: $filePath");
+        print("======================================");
+
+        Toast.show(
+          "File is no longer available:\n${filePath.split('/').last}",
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.red,
+        );
+
+        continue;
+      }
+
+      final String mimeType =
+          lookupMimeType(filePath) ?? "";
+
+      String? fileType;
+
+      if (mimeType.startsWith('video/')) {
+        fileType = "2";
+      } else if (mimeType.startsWith('image/')) {
+        fileType = "3";
+      } else if (mimeType.startsWith('audio/')) {
+        fileType = "1";
+      }
+
+      if (fileType == null) {
+        print("Unsupported artifact:");
+        print(filePath);
+        continue;
+      }
+
+      final String fileName =
+          filePath.split(Platform.pathSeparator).last;
+
+      artifacts.add({
+        "file_path": filePath,
+        "file_name": fileName,
+        "file_type": fileType,
+      });
+    }
+    if (artifacts.isEmpty) {
+      Toast.show(
+        "No valid artifacts found.",
+        duration: Toast.lengthShort,
+        gravity: Toast.bottom,
+        backgroundColor: Colors.red,
+      );
+      return;
+    }
+
+    print("======================================");
+    print("Total artifacts: ${artifacts.length}");
+    print("Artifacts:");
+    print(artifacts);
+    print("======================================");
+
+    // ---------------------------------------------------------
+    // 3. Show background upload message
+    // ---------------------------------------------------------
+
+    Toast.show(
+      "${artifacts.length} artifact(s) uploading in background...",
+      duration: Toast.lengthLong,
+      gravity: Toast.bottom,
+      backgroundColor: Colors.blue,
+    );
+
+    // ---------------------------------------------------------
+    // 4. Register ONE WorkManager task
+    // ---------------------------------------------------------
+
+    final String uniqueId =
+        "artifact_upload_${DateTime.now().millisecondsSinceEpoch}";
+    await Workmanager().registerOneOffTask(
+      uniqueId,
+      "uploadArtifactsTask",
+      inputData: {
+        "artifacts": jsonEncode(artifacts),
+        "beat_id": widget.beatPlanID,
+        "store_id": widget.storeID,
+        "user_id": AppModel.userID,
+        "token": AppModel.token,
+      },
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+        requiresBatteryNotLow: true,
+      ),
+      backoffPolicy: BackoffPolicy.exponential,
+      existingWorkPolicy: ExistingWorkPolicy.append,
+    );
+
+    print("Background artifact upload task registered.");
+
+    // ---------------------------------------------------------
+    // 5. Close UploadFilesScreen
+    // ---------------------------------------------------------
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (BuildContext context) => LandingScreen(),
+      ),
+    );
+  }
+
+
+  Future<void> uploadInBackground(int index) async {
+    // ---------------------------------------------------------
+    // 1. Check / Request Notification Permission
+    // ---------------------------------------------------------
+    final FlutterLocalNotificationsPlugin notifications =
+    FlutterLocalNotificationsPlugin();
+
+    const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('app_ic');
+
+    const DarwinInitializationSettings iosSettings =
+    DarwinInitializationSettings();
+
+    const InitializationSettings initializationSettings =
+    InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await notifications.initialize(initializationSettings);
+
+    // Android 13+ notification permission
+    final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+    notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    final bool? permissionGranted =
+    await androidPlugin?.areNotificationsEnabled();
+
+    print("Notification permission status: $permissionGranted");
+
+    if (permissionGranted != true) {
+      print("Notification permission not granted. Requesting...");
+
+      final bool? requestResult =
+      await androidPlugin?.requestNotificationsPermission();
+
+      print("Notification permission request result: $requestResult");
+
+      if (requestResult != true) {
+        Toast.show(
+          "Notification permission is required to show upload progress.",
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.red,
+        );
+
+        return;
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 2. Start upload process
+    // ---------------------------------------------------------
+
+    APIDialog.showAlertDialog(context, "Uploading video...");
+
+    String filePath = mediaFileURI[index].toString();
+
+    print("Uploading started");
+    print("File: $filePath");
+
+    Navigator.pop(context);
+
+    Toast.show(
+      "Video is uploading in background...",
+      duration: Toast.lengthLong,
+      gravity: Toast.bottom,
+      backgroundColor: Colors.blue,
+    );
+
+    // ---------------------------------------------------------
+    // 3. Register WorkManager task
+    // ---------------------------------------------------------
+
+    await Workmanager().registerOneOffTask(
+      "id1${DateTime.now().millisecondsSinceEpoch}",
+      "uploadFileTask12${DateTime.now().millisecondsSinceEpoch}",
+      inputData: <String, dynamic>{
+        'filesPath': filePath,
+        'beat_id': widget.beatPlanID,
+        'store_id': widget.storeID,
+        'user_id': AppModel.userID,
+        'token': AppModel.token,
+        'file_type': "2",
+      },
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+        requiresBatteryNotLow: true,
+      ),
+      backoffPolicy: BackoffPolicy.exponential,
+      existingWorkPolicy: ExistingWorkPolicy.append,
+    );
+  }
+  /*uploadInBackground(int index) async {
     APIDialog.showAlertDialog(context, "Uploading video...");
 
     String filePath = mediaFileURI[index].toString();
@@ -505,9 +764,8 @@ class MenuState extends State<UploadFilesScreen> {
       backoffPolicy: BackoffPolicy.exponential,
       existingWorkPolicy: ExistingWorkPolicy.append,
     );
-  }
-
-  _fetchImage(BuildContext context) async {
+  }*/
+  /*_fetchImage(BuildContext context) async {
     final ImagePicker _picker = ImagePicker();
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     print('Image File From Android' + (image?.path).toString());
@@ -515,9 +773,40 @@ class MenuState extends State<UploadFilesScreen> {
       mediaFileURI.add(image.path.toString());
       setState(() {});
     }
+  }*/
+  Future<void> _fetchImage(BuildContext context) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image =
+    await picker.pickImage(
+      source: ImageSource.gallery,
+    );
+    if (image == null) {
+      return;
+    }
+    print("Selected image:");
+    print(image.path);
+    final String fileName =
+        image.name;
+    final String? permanentPath =
+    await copyFileToUploadDirectory(
+      image.path,
+      fileName,
+    );
+    if (permanentPath == null) {
+      Toast.show(
+        "Unable to prepare image for upload",
+        duration: Toast.lengthLong,
+        gravity: Toast.bottom,
+        backgroundColor: Colors.red,
+      );
+      return;
+    }
+    mediaFileURI.add(permanentPath);
+    setState(() {});
+    print("Image added to queue:");
+    print(permanentPath);
   }
-
-  _fetchVideo(BuildContext context) async {
+  /*_fetchVideo(BuildContext context) async {
     final ImagePicker _picker = ImagePicker();
     final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
     print('Video File From Android' + (video?.path).toString());
@@ -525,9 +814,49 @@ class MenuState extends State<UploadFilesScreen> {
       mediaFileURI.add(video.path.toString());
       setState(() {});
     }
-  }
+  }*/
+  Future<void> _fetchVideo(BuildContext context) async {
+    final ImagePicker picker = ImagePicker();
 
-  pickAudioFiles() async {
+    final XFile? video =
+    await picker.pickVideo(
+      source: ImageSource.gallery,
+    );
+
+    if (video == null) {
+      return;
+    }
+
+    print("Selected video:");
+    print(video.path);
+
+    final String fileName =
+        video.name;
+
+    final String? permanentPath =
+    await copyFileToUploadDirectory(
+      video.path,
+      fileName,
+    );
+
+    if (permanentPath == null) {
+      Toast.show(
+        "Unable to prepare video for upload",
+        duration: Toast.lengthLong,
+        gravity: Toast.bottom,
+        backgroundColor: Colors.red,
+      );
+      return;
+    }
+
+    mediaFileURI.add(permanentPath);
+
+    setState(() {});
+
+    print("Video added to queue:");
+    print(permanentPath);
+  }
+  /*pickAudioFiles() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       allowMultiple: false,
       type: FileType.custom,
@@ -537,8 +866,57 @@ class MenuState extends State<UploadFilesScreen> {
       mediaFileURI.add(result.files.single.path.toString());
       setState(() {});
     }
-  }
+  }*/
+  Future<void> pickAudioFiles() async {
+    final FilePickerResult? result =
+    await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: [
+        'mp3',
+        'aac',
+        'wav',
+        'wma',
+      ],
+    );
 
+    if (result == null ||
+        result.files.single.path == null) {
+      return;
+    }
+
+    final String sourcePath =
+    result.files.single.path!;
+
+    final String fileName =
+        result.files.single.name;
+
+    print("Selected audio:");
+    print(sourcePath);
+
+    final String? permanentPath =
+    await copyFileToUploadDirectory(
+      sourcePath,
+      fileName,
+    );
+
+    if (permanentPath == null) {
+      Toast.show(
+        "Unable to prepare audio for upload",
+        duration: Toast.lengthLong,
+        gravity: Toast.bottom,
+        backgroundColor: Colors.red,
+      );
+      return;
+    }
+
+    mediaFileURI.add(permanentPath);
+
+    setState(() {});
+
+    print("Audio added to queue:");
+    print(permanentPath);
+  }
   uploadMedia(String type, int index) async {
     FormData formData = FormData.fromMap({
       "user_id": AppModel.userID,
@@ -578,13 +956,11 @@ class MenuState extends State<UploadFilesScreen> {
           backgroundColor: Colors.red);
     }
   }
-
   prepareVideo(int index) async {
     APIDialog.showAlertDialog(context, "Please wait...");
 
     previewVideoDialog(context, index);
   }
-
   Future<void> previewVideoDialog(BuildContext context, int index) async {
     VideoPlayerController? _controller;
     final chewieController;
@@ -673,7 +1049,6 @@ class MenuState extends State<UploadFilesScreen> {
       },
     );
   }
-
   void previewImageDialog(BuildContext context, int index) {
     showGeneralDialog(
       context: context,
@@ -737,7 +1112,6 @@ class MenuState extends State<UploadFilesScreen> {
       },
     );
   }
-
   Future<void> previewAudioDialog(BuildContext context, int index) async {
     final player = AudioPlayer();
     await player.play(UrlSource(mediaFileURI[index]));
@@ -806,5 +1180,59 @@ class MenuState extends State<UploadFilesScreen> {
         );
       },
     );
+  }
+
+  Future<String?> copyFileToUploadDirectory(
+      String sourcePath,
+      String originalFileName,
+      ) async {
+    try {
+      final Directory appDirectory =
+      await getApplicationDocumentsDirectory();
+
+      final Directory uploadDirectory =
+      Directory('${appDirectory.path}/upload_queue');
+
+      if (!await uploadDirectory.exists()) {
+        await uploadDirectory.create(recursive: true);
+      }
+
+      final String safeFileName =
+      originalFileName.replaceAll(
+        RegExp(r'[^a-zA-Z0-9._-]'),
+        '_',
+      );
+
+      final String destinationPath =
+          '${uploadDirectory.path}/'
+          '${DateTime.now().millisecondsSinceEpoch}_'
+          '$safeFileName';
+
+      final File sourceFile = File(sourcePath);
+
+      if (!await sourceFile.exists()) {
+        print("SOURCE FILE DOES NOT EXIST:");
+        print(sourcePath);
+        return null;
+      }
+
+      final File copiedFile =
+      await sourceFile.copy(destinationPath);
+
+      print("======================================");
+      print("FILE COPIED");
+      print("Original : $originalFileName");
+      print("Source   : $sourcePath");
+      print("Target   : ${copiedFile.path}");
+      print("======================================");
+
+      return copiedFile.path;
+    } catch (e, stackTrace) {
+      print("ERROR COPYING FILE");
+      print(e);
+      print(stackTrace);
+
+      return null;
+    }
   }
 }

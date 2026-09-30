@@ -342,6 +342,7 @@ class MenuState extends State<FillAuditScreen> {
                                         borderRadius: BorderRadius.circular(4)),
                                     child: ListView.builder(
                                       scrollDirection: Axis.horizontal,
+
                                         itemCount: currentQuestionList[pos]["options"].length,
                                         itemBuilder: (BuildContext context,int pos22)
                                     {
@@ -391,7 +392,7 @@ class MenuState extends State<FillAuditScreen> {
                                   SizedBox(height: 15),
                                   Padding(
                                     padding: const EdgeInsets.only(left: 14),
-                                    child: Text("Capture Selfie with Store",
+                                    child: Text("Select or Capture Image",
                                         style: TextStyle(
                                           fontSize: 13,
                                           color: Color(0xFF00407E),

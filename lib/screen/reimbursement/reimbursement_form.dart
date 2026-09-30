@@ -550,10 +550,6 @@ class MenuState extends State<ReimbursementFormScreen> {
       ),
     );
   }
-
-
-
-
   void successBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -690,10 +686,6 @@ class MenuState extends State<ReimbursementFormScreen> {
       },
     );
   }
-
-
-
-
   void _submitHandler(BuildContext context) async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -790,28 +782,24 @@ class MenuState extends State<ReimbursementFormScreen> {
 
 
     var data = {
-      '"actualDetail"':json.encode(detailsDataList),
-      '"actualExpense"':json.encode(expensesDataList)
+      'actualDetail':detailsDataList,
+      'actualExpense':expensesDataList
     };
     print("PAYLOAD");
-    log(data.toString());
+    log(jsonEncode(data));
 
     ApiBaseHelper helper = ApiBaseHelper();
     var response =
     await helper.postAPIWithHeader('saveActualTransaction', data, context);
     Navigator.pop(context);
     var responseJSON = json.decode(response.body);
-    log(responseJSON);
+    log(responseJSON.toString());
     if (responseJSON["status"] == 1) {
       Toast.show(responseJSON["message"],
           duration: Toast.lengthLong,
           gravity: Toast.bottom,
           backgroundColor: Colors.green);
-
       Navigator.pop(context);
-
-
-
     } else {
       Toast.show(responseJSON["message"],
           duration: Toast.lengthLong,

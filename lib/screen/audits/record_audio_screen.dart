@@ -19,12 +19,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shopperxm_flutter/screen/audits/tagged_audits.dart';
 import 'package:shopperxm_flutter/utils/app_theme.dart';
-import 'package:another_audio_recorder/another_audio_recorder.dart';
+
 
 import 'package:toast/toast.dart';
 import 'package:shopperxm_flutter/screen/zoom_scaffold.dart' as MEN;
 import 'package:video_player/video_player.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:record/record.dart';
 
 
 
@@ -50,7 +51,7 @@ class MenuState extends State<RecordAudioScreen> {
   int _start = 0;
   double cameraZoom = 1.0;
   CameraController? controller;
-  AnotherAudioRecorder? _recorder;
+  final AudioRecorder _recorder = AudioRecorder();
   CameraDescription? camera;
   List<CameraDescription> cameras = [];
   @override
@@ -470,7 +471,6 @@ class MenuState extends State<RecordAudioScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     init();
     fetchLocalData();
@@ -795,7 +795,8 @@ class MenuState extends State<RecordAudioScreen> {
     print(camera);
   }
   _stop() async {
-    _timer!.cancel();
+
+    /*_timer!.cancel();
     recording=false;
     setState(() {
 
@@ -803,15 +804,31 @@ class MenuState extends State<RecordAudioScreen> {
     var result = await _recorder?.stop();
     print("Stop recording: ${result?.path}");
     print("Stop recording: ${result?.duration}");
-    /*File file = File(result?.path.toString());
-    print("File length: ${await file.length()}");*/
+    *//*File file = File(result?.path.toString());
+    print("File length: ${await file.length()}");*//*
     setState(() {
       pathToAudio=result?.path.toString();
     });
-    storeDataLocally(pathToAudio.toString());
+    storeDataLocally(pathToAudio.toString());*/
+    _timer?.cancel();
+    recording = false;
+    setState(() {});
+
+    String? path = await _recorder.stop();
+
+    print("Stop recording path: $path");
+
+    setState(() {
+      pathToAudio = path;
+    });
+
+    if (path != null) {
+      storeDataLocally(path);
+    }
+
   }
   _startRec() async {
-    _start=0;
+   /* _start=0;
 
     setState(() {
       recording=true;
@@ -831,6 +848,30 @@ class MenuState extends State<RecordAudioScreen> {
 
     } catch (e) {
       print(e);
+    }*/
+    _start = 0;
+
+    setState(() {
+      recording = true;
+    });
+
+    try {
+      if (await _recorder.hasPermission()) {
+
+        await _recorder.start(
+          const RecordConfig(),
+          path: pathToAudio??"", // custom path
+        );
+
+        _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+          _start++;
+          setState(() {});
+        });
+      } else {
+        print("Permission not granted");
+      }
+    } catch (e) {
+      print(e);
     }
   }
   init()async{
@@ -847,19 +888,18 @@ class MenuState extends State<RecordAudioScreen> {
     }
 
     // can add extension like ".mp4" ".wav" ".m4a" ".aac"
-    customPath = appDocDirectory.path + customPath + DateTime.now().millisecondsSinceEpoch.toString();
-    pathToAudio=customPath;
-    _recorder = AnotherAudioRecorder(pathToAudio.toString(), audioFormat: AudioFormat.WAV);
+   // customPath = appDocDirectory.path + customPath + DateTime.now().millisecondsSinceEpoch.toString();
 
-    await _recorder?.initialized;
-    var current = await _recorder?.current(channel: 0);
-    print(current);
+    customPath = appDocDirectory.path + "/audio_${DateTime.now().millisecondsSinceEpoch}.m4a";
+    pathToAudio=customPath;
+   // _recorder = AnotherAudioRecorder(pathToAudio.toString(), audioFormat: AudioFormat.WAV);
+
+   // await _recorder?.initialized;
+   // var current = await _recorder?.current(channel: 0);
+    //print(current);
+
     // should be "Initialized", if all working fine
-   /* setState(() {
-      _current = current;
-      _currentStatus = current!.status!;
-      print(_currentStatus);
-    });*/
+
   }
 
 

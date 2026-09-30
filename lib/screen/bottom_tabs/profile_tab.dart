@@ -67,7 +67,6 @@ class MenuState extends State<ProfileTab> {
     // Add more image URLs as needed
   ];
   int selectedIndex=9999;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -212,7 +211,6 @@ class MenuState extends State<ProfileTab> {
       ),
     );
   }
-
   String? checkConfirmPasswordValidator(String? value) {
     if (newPasswordController.text.toString()!=value) {
       return "Password and Confirm Password must be same";
@@ -220,7 +218,6 @@ class MenuState extends State<ProfileTab> {
       return null;
     }
   }
-
   void _submitHandler() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -228,8 +225,6 @@ class MenuState extends State<ProfileTab> {
     _formKey.currentState!.save();
     changePassword(context);
   }
-
-
   String? checkPasswordValidator(String? value) {
     if (value!.length<6) {
       return "Password must be of at least 6 digits";
@@ -245,8 +240,6 @@ class MenuState extends State<ProfileTab> {
       return null;
     }
   }
-
-
   void changePasswordBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -755,7 +748,6 @@ class MenuState extends State<ProfileTab> {
       },
     );
   }
-
   getProfileData(BuildContext context) async {
     setState(() {
       isLoading=true;
@@ -786,14 +778,12 @@ class MenuState extends State<ProfileTab> {
 
 
   }
-
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     getProfileData(context);
   }
-
   changePassword(BuildContext context) async {
     FocusScope.of(context).unfocus();
     APIDialog.showAlertDialog(context, 'Please wait...');

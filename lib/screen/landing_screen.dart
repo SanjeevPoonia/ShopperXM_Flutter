@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_zoom_drawer/flutter_zoom_drawer.dart';
+import 'package:shopperxm_flutter/features/profile/shopper_profile_screen.dart';
 import 'package:shopperxm_flutter/screen/audits/tagged_audits.dart';
 import 'package:shopperxm_flutter/screen/bottom_tabs/home_tab.dart';
 import 'package:shopperxm_flutter/screen/zoom_scaffold.dart' as MEN;
@@ -44,14 +45,16 @@ class LandingState extends State<LandingScreen> with TickerProviderStateMixin
     HomeTab(),
     AssignedTab(false),
     FeedbackTab(),
-    ProfileTab(),
+    //ProfileTab(),
+    ShopperProfileScreen(),
   ];
 
   List<Widget> bottomTabInApp = <Widget>[
     AssignedTab(false),
     TaggedAuditsScreen(false),
     FeedbackTab(),
-    ProfileTab(),
+    //ProfileTab(),
+    ShopperProfileScreen()
   ];
 
 
@@ -61,7 +64,9 @@ class LandingState extends State<LandingScreen> with TickerProviderStateMixin
 
     return SafeArea(
       child:ChangeNotifierProvider(
-        create: (context) => menuController,
+        create: (context) =>MEN.MenuController(
+          vsync: this,
+        ),
         child: ZoomScaffold(
           menuScreen:  MenuScreen(),
           showBoxes: true,
@@ -498,12 +503,22 @@ class LandingState extends State<LandingScreen> with TickerProviderStateMixin
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
+    loadData();
+
+  }
+
+  loadData()async{
     FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
-    flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()?.requestPermission();
+
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.areNotificationsEnabled();
+
+    /* flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()?.requestPermission();*/
 
     menuController = MEN.MenuController(
       vsync: this,

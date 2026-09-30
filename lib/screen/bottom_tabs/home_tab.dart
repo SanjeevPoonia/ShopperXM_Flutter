@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -19,13 +18,26 @@ import 'package:shopperxm_flutter/screen/view_map_screen.dart';
 import 'package:toast/toast.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workmanager/workmanager.dart';
-
+import '../../features/dashboard/models/profile_status_model.dart';
+import '../../features/dashboard/widgets/profile_complete_dialog.dart';
 import '../../network/api_dialog.dart';
 import '../../network/api_helper.dart';
 import '../../network/loader.dart';
 import '../../utils/app_theme.dart';
 import '../audits/artifact_pending_audits.dart';
 import 'package:flutter/services.dart' show rootBundle;
+
+
+import 'package:flutter/material.dart';
+import 'package:page_transition/page_transition.dart';
+import 'package:shopperxm_flutter/features/dashboard/models/dashboard_filter_model.dart';
+import 'package:shopperxm_flutter/features/dashboard/models/profile_status_model.dart';
+import 'package:shopperxm_flutter/features/dashboard/services/dashboard_api_service.dart';
+import 'package:shopperxm_flutter/features/dashboard/widgets/dashboard_filter_sheet.dart';
+import 'package:shopperxm_flutter/features/dashboard/widgets/freelancer_audit_card.dart';
+import 'package:shopperxm_flutter/features/dashboard/widgets/profile_complete_dialog.dart';
+
+
 class HomeTab extends StatefulWidget {
   MenuState createState() => MenuState();
 }
@@ -48,7 +60,7 @@ class MenuState extends State<HomeTab> {
   int _index = 0;
 
   bool isLoading=false;
-  List<MAP.Marker> _markers = <MAP.Marker>[];
+  Set<MAP.Marker> _markers = {};
   String Latitude_Str="75.8049537";
   String Longitude_Str="26.852436";
   List<String> kmList=[
@@ -64,6 +76,389 @@ class MenuState extends State<HomeTab> {
   ];
   String? _mapStyle;
   GoogleMapController? mapController;
+  String permissionMessage =
+      "To provide you with the best experience and access location-based features, \n"
+      "this app requires permission to access your device’s location.\n"
+      "We use your location to: Show near by Services \n"
+      "Please enable location access in your device settings to continue.";
+  BitmapDescriptor? userIcon;
+  BitmapDescriptor? storeIcon;
+  List storeLocationList = [];
+  double totalAuditValue = 0.0;
+
+
+
+
+
+  final DashboardApiService _dashboardApiService =
+  DashboardApiService();
+  DashboardFilterModel _dashboardFilter =
+  DashboardFilterModel.initial();
+  List<String> _states = ['Select State'];
+  List<String> _cities = ['Select City'];
+  bool _isLoadingStates = false;
+  bool _isLoadingCities = false;
+  bool _isProfileDialogShown = false;
+  bool _isDashboardLoading = false;
+
+  // ==================Show Profile Dialog ======
+  void _showProfileCompleteDialog(
+      ProfileStatusModel profileStatus,
+      ) {
+    if (!mounted) {
+      return;
+    }
+
+    if (_isProfileDialogShown) {
+      return;
+    }
+
+    if (!profileStatus.shouldShowDialog) {
+      return;
+    }
+
+    _isProfileDialogShown = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (dialogContext) {
+        return ProfileCompleteDialog(
+          profileStatus: profileStatus,
+
+          onSkip: () {
+            Navigator.of(dialogContext).pop();
+          },
+
+          onGoToProfile: () {
+            Navigator.of(dialogContext).pop();
+            _openProfileTab();
+          },
+        );
+      },
+    );
+  }
+  void _openProfileTab() {
+    // Use the same navigation mechanism
+    // already used by your existing HomeTab
+  }
+  Widget _buildAuditSummary() {
+    final int count =
+        freelanceAuditList.length;
+
+    if (count == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        12,
+        8,
+        12,
+        4,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '$count ${count == 1 ? 'Audit' : 'Audits'} Available',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+
+          Text(
+            'Value: ₹ ${totalAuditValue.toStringAsFixed(0)}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  Widget _buildAuditList() {
+    if (_isDashboardLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(30),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (freelanceAuditList.isEmpty) {
+      return _buildEmptyAuditState();
+    }
+
+    return ListView.builder(
+      itemCount: freelanceAuditList.length,
+      padding: const EdgeInsets.only(
+        top: 8,
+        bottom: 20,
+      ),
+      itemBuilder: (context, pos) {
+        final Map<String, dynamic> audit =
+        freelanceAuditList[pos];
+
+        return FreelancerAuditCard(
+          audit: audit,
+
+          formatAuditDate: (date) {
+            return parseServerFormatDate(date);
+          },
+
+          // -----------------------------------------
+          // VIEW MAP
+          // -----------------------------------------
+
+          onViewMap: () {
+            final double? latitude =
+            double.tryParse(
+              audit['latitude']?.toString() ?? '',
+            );
+
+            final double? longitude =
+            double.tryParse(
+              audit['longitude']?.toString() ?? '',
+            );
+
+            if (latitude == null ||
+                longitude == null) {
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Store location is not available.',
+                  ),
+                ),
+              );
+
+              return;
+            }
+
+            navigateTo(
+              latitude,
+              longitude,
+            );
+          },
+
+          // -----------------------------------------
+          // SELF ASSIGN
+          // -----------------------------------------
+
+          onSelfAssign: () async {
+            final data = await Navigator.push(
+              context,
+              PageTransition(
+                type:
+                PageTransitionType.bottomToTop,
+                child: SelfAssignScreen(
+                  audit['store_id']
+                      .toString(),
+                  audit['beat_plan_id']
+                      .toString(),
+                  audit['des_document'],
+                ),
+              ),
+            );
+
+            if (data != null && mounted) {
+              getFreelanceAuditList(context);
+            }
+          },
+        );
+      },
+    );
+  }
+  Widget _buildEmptyAuditState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 25,
+          vertical: 40,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.assignment_outlined,
+              size: 55,
+              color: Colors.grey.shade400,
+            ),
+
+            const SizedBox(height: 15),
+
+            const Text(
+              'Data Not Found',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            Text(
+              'Please Try Again Later!!!!!!!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==============Load States ================
+
+  Future<void> loadDashboardStates() async {
+    if (_isLoadingStates) return;
+
+    setState(() {
+      _isLoadingStates = true;
+    });
+
+    try {
+      final states =
+      await _dashboardApiService.getStateList(
+        context: context,
+        endpoint: 'get-store-state',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _states = states;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to load states: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingStates = false;
+        });
+      }
+    }
+  }
+
+
+  Future<List<String>> loadDashboardCities(
+      String state,
+      ) async {
+    if (state.trim().isEmpty ||
+        state == 'Select State') {
+      return ['Select City'];
+    }
+
+    debugPrint(
+      'Loading cities for state: $state',
+    );
+
+    try {
+      final List<String> cities =
+      await _dashboardApiService.getCityList(
+        context: context,
+        endpoint: 'get-store-city',
+        state: state,
+      );
+
+      debugPrint(
+        'Cities received for $state: $cities',
+      );
+
+      return cities;
+    } catch (e) {
+      debugPrint(
+        'loadDashboardCities Error: $e',
+      );
+
+      rethrow;
+    }
+  }
+
+  //===============Show filter bottom sheet
+
+  Future<void> showDashboardFilter() async {
+    if (_states.length <= 1) {
+      await loadDashboardStates();
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        return DashboardFilterSheet(
+          initialFilter: _dashboardFilter,
+          states: _states,
+          isLoadingStates: _isLoadingStates,
+
+          onLoadCities: (state) async {
+            return await loadDashboardCities(state);
+          },
+
+          onApply: (filter) async {
+            // Keep Apply button loading during API call
+            await _applyDashboardFilter(filter);
+
+            // Close this bottom sheet ONLY after API completes
+            if (sheetContext.mounted) {
+              Navigator.of(sheetContext).pop();
+            }
+          },
+        );
+      },
+    );
+  }
+  Future<void> _applyDashboardFilter(
+      DashboardFilterModel filter,
+      ) async {
+    setState(() {
+      _dashboardFilter = filter;
+    });
+
+    await getFreelanceAuditList(
+      context,
+      filter: filter,
+    );
+  }
+
+
+
+
+  // ================= ICON =================
+
+  Future<void> initIcons() async {
+    userIcon = await loadIcon("assets/user_pin.png");
+    storeIcon = await loadIcon("assets/store_pin.png");
+  }
+
+  Future<BitmapDescriptor> loadIcon(String path) async {
+    final data = await rootBundle.load(path);
+    return BitmapDescriptor.fromBytes(data.buffer.asUint8List());
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,7 +477,6 @@ class MenuState extends State<HomeTab> {
                 mapController=controller;
                 mapController!.setMapStyle(_mapStyle);
                 _controller.complete(controller);
-
               },
             ),
           ),
@@ -126,7 +520,8 @@ class MenuState extends State<HomeTab> {
                       Spacer(),
                       InkWell(
                         onTap: (){
-                          filterBottomSheet(context);
+                          //filterBottomSheet(context);
+                          showDashboardFilter();
                         },
                         child: Container(
                           width: 60,
@@ -173,9 +568,8 @@ class MenuState extends State<HomeTab> {
                           ),
                         ),
                         SizedBox(height: 10),
-
-                        freelanceAuditList.length!=0?
-
+                        _buildAuditSummary(),
+                        /*freelanceAuditList.length!=0?
                         Padding(
                           padding: EdgeInsets.only(left: 5),
                           child: Text(freelanceAuditList.length.toString()+" Audits Available",
@@ -184,12 +578,12 @@ class MenuState extends State<HomeTab> {
                                 fontWeight: FontWeight.w700,
                                 color: Colors.black,
                               )),
-                        ):Container(),
+                        ):Container(),*/
                         SizedBox(height: 10),
-
-
-
-                       Expanded(
+                        Expanded(
+                          child: _buildAuditList(),
+                        ),
+                      /* Expanded(
                          child:
                          isLoading?
 
@@ -206,10 +600,70 @@ class MenuState extends State<HomeTab> {
 
 
 
+                             ListView.builder(
+                               itemCount: freelanceAuditList.length,
+                               padding: const EdgeInsets.only(
+                                 top: 8,
+                                 bottom: 20,
+                               ),
+                               itemBuilder: (context, pos) {
+                                 final audit = freelanceAuditList[pos];
+
+                                 return FreelancerAuditCard(
+                                   audit: audit,
+                                   formatAuditDate: (date) {
+                                     return parseServerFormatDate(date);
+                                   },
+                                   onViewMap: () {
+                                     final latitude = double.tryParse(
+                                       audit["latitude"]?.toString() ?? '',
+                                     );
+                                     final longitude = double.tryParse(
+                                       audit["longitude"]?.toString() ?? '',
+                                     );
+                                     if (latitude == null ||
+                                         longitude == null) {
+                                       ScaffoldMessenger.of(context)
+                                           .showSnackBar(
+                                         const SnackBar(
+                                           content: Text(
+                                             'Store location is not available.',
+                                           ),
+                                         ),
+                                       );
+                                       return;
+                                     }
+                                     navigateTo(
+                                       latitude,
+                                       longitude,
+                                     );
+                                   },
+                                   onSelfAssign: () async {
+                                     final data = await Navigator.push(
+                                       context,
+                                       PageTransition(
+                                         type:
+                                         PageTransitionType.bottomToTop,
+                                         child: SelfAssignScreen(
+                                           audit["store_id"]
+                                               .toString(),
+                                           audit["beat_plan_id"]
+                                               .toString(),
+                                           audit["des_document"],
+                                         ),
+                                       ),
+                                     );
+
+                                     if (data != null) {
+                                       getFreelanceAuditList(context);
+                                     }
+                                   },
+                                 );
+                               },
+                             )
 
 
-
-                         ListView.builder(
+                         *//*ListView.builder(
                            itemCount: freelanceAuditList.length,
                              padding: const EdgeInsets.only(bottom: 70,top: 6),
                              shrinkWrap: true,
@@ -458,8 +912,8 @@ class MenuState extends State<HomeTab> {
                          }
 
 
-                         ),
-                       )
+                         ),*//*
+                       )*/
                       ],
                     ),
                   ),
@@ -864,14 +1318,117 @@ class MenuState extends State<HomeTab> {
     await controller.animateCamera(CameraUpdate.newCameraPosition(currentLocation));
   }
 
+  /*Future<void> getFreelanceAuditListFiltered(
+      BuildContext context, {
+        DashboardFilterModel? filter,
+      }) async {
+    if (!mounted) return;
 
-  getFreelanceAuditList(BuildContext context) async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final DashboardFilterModel activeFilter =
+          filter ?? _dashboardFilter;
+
+      final response = await _dashboardApiService
+          .getFreelanceAuditList(
+        context: context,
+        latitude: Latitude_Str,
+        longitude: Longitude_Str,
+        filter: activeFilter,
+      );
+
+      if (!mounted) return;
+
+      if (!response.success) {
+        setState(() {
+          freelanceAuditList = [];
+          totalAuditValue = 0;
+        });
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          SnackBar(
+            content: Text(
+              response.message.isEmpty
+                  ? 'Unable to load audits'
+                  : response.message,
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      final sortedAudits =
+      _dashboardApiService.sortAuditsByDistance(
+        response.audits,
+      );
+
+      final total =
+      _dashboardApiService
+          .calculateTotalAuditValue(
+        sortedAudits,
+      );
+
+      setState(() {
+        _dashboardFilter = activeFilter;
+
+        freelanceAuditList =
+            sortedAudits
+                .map(
+                  (audit) => audit.toJson(),
+            )
+                .toList();
+
+        totalAuditValue = total;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _showProfileCompleteDialog(
+          response.profileStatus,
+        );
+      });
+
+
+
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        freelanceAuditList = [];
+        totalAuditValue= 0;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Something went wrong: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }*/
+
+
+  /*getFreelanceAuditList(BuildContext context) async {
    setState(() {
      isLoading=true;
    });
     var data = {
-      /*"latitude":Latitude_Str,
-      "longitude": Longitude_Str,*/
+      "latitude":Latitude_Str,
+      "longitude": Longitude_Str,
       "min_distance": range,
     };
     print(data);
@@ -883,26 +1440,176 @@ class MenuState extends State<HomeTab> {
    setState(() {
      isLoading=false;
    });
-
+   storeLocationList.clear();
    freelanceAuditList=responseJSON["data"];
+   for (int i = 0; i < freelanceAuditList.length; i++) {
+     var jn = freelanceAuditList[i];
+
+     String price = jn["price"].toString();
+
+     if (price != "null" && price.isNotEmpty) {
+       totalAuditValue += int.parse(price);
+     }
+
+     storeLocationList.add({
+       "lat": jn["latitude"],
+       "lng": jn["longitude"],
+     });
+   }
+
+
+
    setState(() {
 
    });
 
 
 
+  }*/
+  Future<void> getFreelanceAuditList(
+      BuildContext context, {
+        DashboardFilterModel? filter,
+      }) async {
+    final DashboardFilterModel activeFilter =
+        filter ?? _dashboardFilter;
+
+    if (mounted) {
+      setState(() {
+        _isDashboardLoading = true;
+
+        // Reset total before loading new data.
+        totalAuditValue = 0.0;
+      });
+    }
+
+    try {
+      final response =
+      await _dashboardApiService
+          .getFreelanceAuditList(
+        context: context,
+        latitude: Latitude_Str,
+        longitude: Longitude_Str,
+        filter: activeFilter,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!response.success) {
+        setState(() {
+          freelanceAuditList = [];
+          totalAuditValue = 0.0;
+          _isDashboardLoading = false;
+        });
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          SnackBar(
+            content: Text(
+              response.message.isEmpty
+                  ? 'Unable to load audits.'
+                  : response.message,
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      // ---------------------------------------------
+      // SORT BY DISTANCE
+      // ---------------------------------------------
+
+      final sortedAudits =
+      _dashboardApiService.sortAuditsByDistance(
+        response.audits,
+      );
+
+      // ---------------------------------------------
+      // TOTAL AUDIT VALUE
+      // ---------------------------------------------
+
+      final double total =
+      _dashboardApiService
+          .calculateTotalAuditValue(
+        sortedAudits,
+      );
+
+      // ---------------------------------------------
+      // KEEP EXISTING LIST COMPATIBILITY
+      // ---------------------------------------------
+
+      final List<Map<String, dynamic>> auditList =
+      sortedAudits
+          .map(
+            (audit) => audit.toJson(),
+      )
+          .toList();
+
+      setState(() {
+        _dashboardFilter = activeFilter;
+
+        freelanceAuditList = auditList;
+
+        totalAuditValue = total;
+
+        _isDashboardLoading = false;
+      });
+
+      // ---------------------------------------------
+      // PROFILE COMPLETION DIALOG
+      // ---------------------------------------------
+
+      WidgetsBinding.instance.addPostFrameCallback(
+            (_) {
+          if (!mounted) {
+            return;
+          }
+
+          _showProfileCompleteDialog(
+            response.profileStatus,
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint(
+        'getFreelanceAuditList Error: $e',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        freelanceAuditList = [];
+        totalAuditValue = 0.0;
+        _isDashboardLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to load audit data. Please try again later.',
+          ),
+        ),
+      );
+    }
   }
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
+    initIcons();
+    _dashboardFilter = DashboardFilterModel.initial();
+
     rootBundle.loadString('assets/map_style.txt').then((string) {
       print("File loaded");
       _mapStyle = string;
     });
-    fetchUserCurrentLocation();
-    getFreelanceAuditList(context);
+    //fetchUserCurrentLocation();
+    //getFreelanceAuditList(context);
+    getLocationCall();
   }
   String getDistance(double distance)
   {
@@ -936,10 +1643,6 @@ class MenuState extends State<HomeTab> {
                 )*/
             )
         );
-
-
-
-
         setState(() {
 
         });
@@ -948,7 +1651,6 @@ class MenuState extends State<HomeTab> {
 
 
   }
-
   void schedulePeriodicTask() {
     Workmanager().registerPeriodicTask(
     'myPeriodicTask',
@@ -963,8 +1665,6 @@ class MenuState extends State<HomeTab> {
     final clockString = dateformat.format(date);
     return clockString.toString();
   }
-
-
   void navigateTo(double lat, double lng) async {
     var uri = Uri.parse("google.navigation:q=$lat,$lng&mode=d");
     if (await canLaunchUrl(Uri.parse(uri.toString()))) {
@@ -972,5 +1672,106 @@ class MenuState extends State<HomeTab> {
     } else {
       throw 'Could not launch ${uri.toString()}';
     }
+  }
+
+  void showPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: Text("Location Permission Required"),
+        content: Text(permissionMessage),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Geolocator.openAppSettings();
+              Navigator.pop(context);
+            },
+            child: Text("Go To Settings"),
+          )
+        ],
+      ),
+    );
+  }
+  Future<void> getLocationCall() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      // First time ask
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        Toast.show("Permission Denied!!!");
+        showPermissionDialog();
+        return;
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      // Same as "Don't ask again"
+      showPermissionDialog();
+      return;
+    }
+    getLocationUpdate();
+  }
+
+  // ================= LOCATION =================
+
+  Future<void> getLocationUpdate() async {
+    Position? position = await Geolocator.getLastKnownPosition();
+
+    if (position != null) {
+      lat=position.latitude;
+      long=position.longitude;
+      Latitude_Str=position.latitude.toString();
+      Longitude_Str=position.longitude.toString();
+    }
+
+     await getFreelanceAuditList(context);
+    addStoreMarker();
+  }
+  // ================= MAP =================
+
+  void addStoreMarker() {
+    _markers.clear();
+
+    double userLat = double.tryParse(Latitude_Str) ?? 0.0;
+    double userLng = double.tryParse(Longitude_Str) ?? 0.0;
+
+    // USER MARKER
+    _markers.add(
+      MAP.Marker(
+        markerId: MarkerId("user"),
+        position: LatLng(userLat, userLng),
+        infoWindow: InfoWindow(title: "You"),
+        icon: userIcon ?? BitmapDescriptor.defaultMarker,
+      ),
+    );
+
+    for (int i = 0; i < storeLocationList.length; i++) {
+      double lat = double.tryParse(storeLocationList[i]["lat"]) ?? 0.0;
+      double lng = double.tryParse(storeLocationList[i]["lng"]) ?? 0.0;
+
+      if (lat != 0.0 && lng != 0.0) {
+        _markers.add(
+          MAP.Marker(
+            markerId: MarkerId("store_$i"),
+            position: LatLng(lat, lng),
+            infoWindow: InfoWindow(title: "Store"),
+            icon: storeIcon ?? BitmapDescriptor.defaultMarker,
+          ),
+        );
+      }
+    }
+
+    mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: LatLng(userLat, userLng),
+          zoom: 7,
+          tilt: 45,
+          bearing: 0,
+        ),
+      ),
+    );
+
+    setState(() {});
   }
 }

@@ -44,6 +44,6 @@ class Reaction<T> {
 
   @override
   int get hashCode {
-    return hashValues(icon, previewIcon, title);
+    return Object.hash(icon, previewIcon, title);
   }
 }

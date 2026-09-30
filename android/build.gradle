@@ -1,3 +1,12 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+    }
+}
+
 allprojects {
     repositories {
         google()
@@ -6,11 +15,32 @@ allprojects {
 }
 
 rootProject.buildDir = '../build'
+
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
     project.evaluationDependsOn(':app')
+}
+
+// ✅ SAFE WAY (NO afterEvaluate)
+subprojects { project ->
+
+    project.plugins.withId("com.android.application") {
+        def androidExt = project.extensions.findByName("android")
+        if (androidExt != null) {
+            androidExt.compileSdkVersion = 36
+
+            androidExt.defaultConfig {
+                targetSdkVersion 36
+            }
+        }
+    }
+
+    project.plugins.withId("com.android.library") {
+        def androidExt = project.extensions.findByName("android")
+        if (androidExt != null) {
+            androidExt.compileSdkVersion = 36
+        }
+    }
 }
 
 tasks.register("clean", Delete) {

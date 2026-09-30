@@ -1,10 +1,16 @@
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:shopperxm_flutter/authorization/shopper_basic_signup_screen.dart';
+import 'package:shopperxm_flutter/authorization/shopper_signup_dashboard.dart';
 import 'package:shopperxm_flutter/screen/faq_term_and_condition/terms_screen.dart';
 import 'package:shopperxm_flutter/screen/landing_screen.dart';
 import 'package:shopperxm_flutter/screen/login_work_flow/account_create_screen.dart';
@@ -15,6 +21,7 @@ import 'package:shopperxm_flutter/screen/profile_details/payment_details_screen.
 import 'package:toast/toast.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../authorization/shopper_basic_verify_screen.dart';
 import '../../network/Utils.dart';
 import '../../network/api_dialog.dart';
 import '../../network/api_helper.dart';
@@ -37,7 +44,6 @@ class LoginState extends State<LoginScreen> {
   final _formKeyLogin = GlobalKey<FormState>();
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
   }
   Widget build(BuildContext context) {
@@ -152,11 +158,7 @@ class LoginState extends State<LoginScreen> {
                                   children: [
                                     Expanded(child: InkWell(
                                       onTap: () {
-
-
-
                                         Navigator.push(context, MaterialPageRoute(builder: (context)=>ForgotPasswordScreen()));
-
                                       },
                                       child: Text(
                                         'Forget Password?',
@@ -173,7 +175,6 @@ class LoginState extends State<LoginScreen> {
                                     Expanded(child: InkWell(
                                       onTap: () {
                                         Navigator.push(context, MaterialPageRoute(builder: (context)=>LoginWithOtpScreen()));
-
                                       },
                                       child: Text(
                                         'Login with OTP',
@@ -194,7 +195,6 @@ class LoginState extends State<LoginScreen> {
                                 InkWell(
                                   onTap: () {
                                     _submitHandler(context);
-
                                   },
                                   child: Container(
 
@@ -317,7 +317,8 @@ class LoginState extends State<LoginScreen> {
       return;
     }
     _formKeyLogin.currentState!.save();
-    loginUser(context);
+    //loginUser(context);
+    loginUserWith2FA(context);
 
   }
   void registerBottomSheet(BuildContext context) {
@@ -470,7 +471,8 @@ class LoginState extends State<LoginScreen> {
                       onPressed: () {
 
                         Navigator.pop(context);
-                          Navigator.push(context, MaterialPageRoute(builder: (context)=>BasicInformationSignUpScreen({},"","")));
+                        Navigator.push(context, MaterialPageRoute(builder: (context)=>ShopperBasicSignupScreen()));
+                        //Navigator.push(context, MaterialPageRoute(builder: (context)=>BasicInformationSignUpScreen({},"","")));
 
 
 
@@ -608,7 +610,416 @@ class LoginState extends State<LoginScreen> {
     print(responseJSON);
 
   }
+  loginUserWith2FA(BuildContext context) async {
+    FocusScope.of(context).unfocus();
+    APIDialog.showAlertDialog(context, 'Logging in...');
+    String deviceId=await getDeviceUniqueId();
+    var data = {
+      "email": usernameController.text,
+      "password": passwordController.text,
+      "device_id":deviceId
+    };
+    print(data);
 
+    ApiBaseHelper helper = ApiBaseHelper();
+    var response = await helper.postAPI('appLoginNew', data, context);
+    Navigator.of(context, rootNavigator: true).pop();
+    var responseJSON = json.decode(response.body ?? "{}");
+
+    if(responseJSON["status"]==1)
+    {
+      Toast.show(responseJSON["message"],
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.green);
+
+      String emailStr=responseJSON['email']?.toString()??"";
+      showOtpBottomSheet(
+        context,
+        onVerify: (otp) {
+          print("OTP: $otp");
+          verify2FAOtp(context, otp, emailStr);
+        },
+        onResend: () {
+          print("Resend clicked");
+          // call resend API
+          resendOTP();
+        },
+      );
+
+      
+    }
+    else
+    {
+      Toast.show(responseJSON["message"],
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.red);
+    }
+
+
+    print(responseJSON);
+  }
+  void resendOTP(){
+    loginUserWith2FA(context);
+  }
+  verify2FAOtp(BuildContext context,String otpStr,String email) async {
+    FocusScope.of(context).unfocus();
+    APIDialog.showAlertDialog(context, 'Verify OTP...');
+    String deviceId=await getDeviceUniqueId();
+    var data = {
+      "email": email,
+      "device_id":deviceId,
+      "otp":otpStr
+    };
+    print(data);
+
+    ApiBaseHelper helper = ApiBaseHelper();
+    var response = await helper.postAPI('verify-2fa-otp', data, context);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+    var responseJSON = json.decode(response.body ?? "{}");
+
+    if(responseJSON["status"]==1)
+    {
+      Toast.show(responseJSON["message"]?.toString()??"",
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.green);
+      var data=responseJSON;
+      int OverAllStatus=data['overall_status']??0;
+      int FormSubmitLevel=data['form_submit_level']??0;
+      String NameStr=data['name']?.toString()??"";
+      String authKey=data['auth_key']?.toString()??"";
+      String userId=data['user_id']?.toString()??"";
+      String img_url=data['img_url']?.toString()??"";
+      String mobileNo=data['mobile_no']?.toString()??"";
+      String countryCode=data['country_code']?.toString()??"";
+      String user_type=data['user_type']?.toString()??"";
+      String shoppers_overall_status=data['shoppers_overall_status']?.toString()??"";
+      if(user_type=="26"){
+        saveUserDetails(user_type, authKey, userId, email, NameStr, img_url, OverAllStatus.toString(), FormSubmitLevel.toString(), mobileNo, countryCode, shoppers_overall_status);
+        Toast.show("Partner Fl Login Successfully",
+            duration: Toast.lengthLong,
+            gravity: Toast.bottom,
+            backgroundColor: Colors.green);
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (BuildContext context) => LandingScreen()));
+      }else{
+        if(shoppers_overall_status.isNotEmpty){
+            Toast.show(responseJSON["message"]?.toString()??"",
+              duration: Toast.lengthLong,
+              gravity: Toast.bottom,
+              backgroundColor: Colors.green);
+            saveUserDetails(user_type, authKey, userId, email, NameStr, img_url, OverAllStatus.toString(), FormSubmitLevel.toString(), mobileNo, countryCode, shoppers_overall_status);
+            if(shoppers_overall_status=='4'||shoppers_overall_status=='5'){
+              Navigator.of(context).pushReplacement(MaterialPageRoute(
+                  builder: (BuildContext context) => LandingScreen()));
+            }else if(shoppers_overall_status=="1"){
+              String moOtp=responseJSON['data']['otp_code_mobile']?.toString()??"";
+              String emOtp=responseJSON['data']['otp_code_email']?.toString()??"";
+              Navigator.push(context, MaterialPageRoute(builder: (context)=>ShopperOtpVerificationScreen(userId: userId, authKey: authKey, mobileOtp: moOtp, emailOtp: emOtp)));
+            }else{
+              Navigator.of(context).pushReplacement(MaterialPageRoute(
+                  builder: (BuildContext context) => ShopperSignupDashboardScreen()));
+            }
+        }else if(OverAllStatus==1){
+          Toast.show(responseJSON["message"]?.toString()??"",
+              duration: Toast.lengthLong,
+              gravity: Toast.bottom,
+              backgroundColor: Colors.green);
+          saveUserDetails(user_type, authKey, userId, email, NameStr, img_url, OverAllStatus.toString(), FormSubmitLevel.toString(), mobileNo, countryCode, shoppers_overall_status);
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (BuildContext context) => LandingScreen()));
+        }else if(OverAllStatus==0 && FormSubmitLevel==7){
+          Toast.show('Your Account Is Pending Please wait For Approval!!!',
+              duration: Toast.lengthLong,
+              gravity: Toast.bottom,
+              backgroundColor: Colors.red);
+
+        }else if(FormSubmitLevel==0)
+        {
+          saveUserDetails(user_type, authKey, userId, email, NameStr, img_url, OverAllStatus.toString(), FormSubmitLevel.toString(), mobileNo, countryCode, shoppers_overall_status);
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (BuildContext context) => BasicInformationScreen({},usernameController.text,responseJSON["mobile_no"].toString())));
+        }
+
+        else if(FormSubmitLevel==1)
+        {
+          saveUserDetails(user_type, authKey, userId, email, NameStr, img_url, OverAllStatus.toString(), FormSubmitLevel.toString(), mobileNo, countryCode, shoppers_overall_status);
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (BuildContext context) => AddressDetailsScreen("",{})));
+        }
+
+        else if(FormSubmitLevel==3)
+        {
+          saveUserDetails(user_type, authKey, userId, email, NameStr, img_url, OverAllStatus.toString(), FormSubmitLevel.toString(), mobileNo, countryCode, shoppers_overall_status);
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (BuildContext context) => PaymentDetailsScreen({})));
+        }
+        else if(FormSubmitLevel==5)
+        {
+          saveUserDetails(user_type, authKey, userId, email, NameStr, img_url, OverAllStatus.toString(), FormSubmitLevel.toString(), mobileNo, countryCode, shoppers_overall_status);
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+              builder: (BuildContext context) => TermsScreen()));
+        }else{
+
+          print('No Status Matched!!!');
+        }
+
+      }
+
+
+
+
+
+    } else {
+      Toast.show(responseJSON["message"],
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.red);
+    }
+
+
+    print(responseJSON);
+
+  }
+  void saveUserDetails(String user_type,String authKey,String userId,String email,String NameStr,String img_url,String OverAllStatus,String FormSubmitLevel,String mobileNo,String countryCode,String shoppers_overall_status){
+    AppModel.setUserType(user_type);
+    AppModel.setTokenValue(authKey);
+    MyUtils.saveSharedPreferences("usertype", user_type);
+    MyUtils.saveSharedPreferences('access_token', authKey);
+    MyUtils.saveSharedPreferences('user_id', userId);
+    MyUtils.saveSharedPreferences('email', email);
+    MyUtils.saveSharedPreferences('name', NameStr);
+    MyUtils.saveSharedPreferences('img_url', img_url);
+    MyUtils.saveSharedPreferences('overall_status', OverAllStatus.toString());
+    MyUtils.saveSharedPreferences('formsubmit_level', FormSubmitLevel.toString());
+    MyUtils.saveSharedPreferences('mobile', mobileNo);
+    MyUtils.saveSharedPreferences('county_code', countryCode);
+    MyUtils.saveSharedPreferences('shopper_overall_status', shoppers_overall_status);
+    AppModel.setUserID(userId);
+  }
+  Future<String> getDeviceUniqueId() async {
+    final deviceInfo = DeviceInfoPlugin();
+    String fingerprint = "";
+
+    if (Platform.isAndroid) {
+      final android = await deviceInfo.androidInfo;
+
+      fingerprint =
+      "${android.manufacturer}_${android.model}_${android.brand}_${android.device}_${android.product}_${android.hardware}_${android.version.release}";
+    } else if (Platform.isIOS) {
+      final ios = await deviceInfo.iosInfo;
+
+      fingerprint =
+      "${ios.name}_${ios.model}_${ios.systemName}_${ios.systemVersion}_${ios.identifierForVendor}";
+    }
+
+    // 🔐 SHA256 Hash
+    final bytes = utf8.encode(fingerprint);
+    final deviceId = sha256.convert(bytes).toString();
+
+    print("Fingerprint: $fingerprint");
+    print("Device ID: $deviceId");
+
+    return deviceId;
+  }
+
+  void showOtpBottomSheet(
+      BuildContext context, {
+        required Function(String otp) onVerify,
+        required Function() onResend,
+      }) {
+    final List<TextEditingController> controllers =
+    List.generate(6, (_) => TextEditingController());
+
+    final List<FocusNode> focusNodes =
+    List.generate(6, (_) => FocusNode());
+
+    int timer = 30;
+    bool canResend = false;
+    Timer? countdown;
+
+    void startTimer(StateSetter setState) {
+      timer = 30;
+      canResend = false;
+
+      countdown?.cancel();
+
+      countdown = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (timer == 0) {
+          setState(() => canResend = true);
+          t.cancel();
+        } else {
+          setState(() => timer--);
+        }
+      });
+    }
+
+    String getOtp() {
+      return controllers.map((e) => e.text).join();
+    }
+
+    void handleInput(String value, int index) {
+      if (value.isNotEmpty) {
+        if (index < 5) {
+          focusNodes[index + 1].requestFocus();
+        } else {
+          focusNodes[index].unfocus();
+        }
+      }
+    }
+
+    void handleBackspace(int index) {
+      if (controllers[index].text.isEmpty && index > 0) {
+        focusNodes[index - 1].requestFocus();
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+
+            if (countdown == null) {
+              startTimer(setState);
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+
+                      const Text(
+                        "OTP Verification",
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      const Text(
+                        "Enter 6 digit OTP",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // 🔥 OTP BOXES
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(6, (index) {
+                          return SizedBox(
+                            width: 45,
+                            child: TextField(
+                              controller: controllers[index],
+                              focusNode: focusNodes[index],
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              maxLength: 1,
+                              decoration: InputDecoration(
+                                counterText: "",
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onChanged: (value) {
+                                handleInput(value, index);
+                              },
+                              onSubmitted: (_) {
+                                handleInput(
+                                    controllers[index].text, index);
+                              },
+                              onEditingComplete: () {},
+                            ),
+                          );
+                        }),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      Text(
+                        canResend
+                            ? "You can resend OTP"
+                            : "Resend OTP in 00:${timer.toString().padLeft(2, '0')}",
+                        style: const TextStyle(color: Colors.red),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      GestureDetector(
+                        onTap: canResend
+                            ? () {
+                          onResend();
+                          startTimer(setState);
+                        }
+                            : null,
+                        child: Text(
+                          "Resend OTP",
+                          style: TextStyle(
+                            color: canResend ? Colors.blue : Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            String otp = getOtp();
+
+                            if (otp.length != 6) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                    Text("Enter valid 6 digit OTP")),
+                              );
+                              return;
+                            }
+
+                            countdown?.cancel();
+
+                            onVerify(otp);
+
+                          },
+                          child: const Text("Verify"),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      countdown?.cancel();
+    });
+  }
 
 
 

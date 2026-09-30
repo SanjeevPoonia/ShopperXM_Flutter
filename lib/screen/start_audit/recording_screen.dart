@@ -1,8 +1,5 @@
 import 'dart:async';
 import 'dart:io' as io;
-
-
-import 'package:another_audio_recorder/another_audio_recorder.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +10,7 @@ import 'package:path/path.dart' as path;
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:toast/toast.dart';
 import 'package:workmanager/workmanager.dart';
-
+import 'package:record/record.dart';
 import '../../utils/app_modal.dart';
 import '../../utils/app_theme.dart';
 
@@ -33,11 +30,17 @@ class RecordAudioScreen2 extends StatefulWidget {
 }
 class _MyHomePageState extends State<RecordAudioScreen2> {
 
-  String? pathToAudio;
+
   bool _playAudio = false;
-  AnotherAudioRecorder? _recorder;
+
+  /*AnotherAudioRecorder? _recorder;
   Recording? _current;
-  RecordingStatus _currentStatus = RecordingStatus.Unset;
+  RecordingStatus _currentStatus = RecordingStatus.Unset;*/
+
+  final AudioRecorder _recorder = AudioRecorder();
+  String? pathToAudio;
+  bool isRecording = false;
+
   AudioPlayer audioPlayer = AudioPlayer();
   Timer? _timer;
   int _start = 0;
@@ -63,10 +66,12 @@ class _MyHomePageState extends State<RecordAudioScreen2> {
     }
 
     // can add extension like ".mp4" ".wav" ".m4a" ".aac"
-    customPath = appDocDirectory.path + customPath + DateTime.now().millisecondsSinceEpoch.toString();
+    //customPath = appDocDirectory.path + customPath + DateTime.now().millisecondsSinceEpoch.toString();
+    customPath = appDocDirectory.path +
+        "/audio_${DateTime.now().millisecondsSinceEpoch}.m4a";
     pathToAudio=customPath;
-    _recorder = AnotherAudioRecorder(pathToAudio.toString(), audioFormat: AudioFormat.WAV);
 
+    /*_recorder = AnotherAudioRecorder(pathToAudio.toString(), audioFormat: AudioFormat.WAV);
     await _recorder?.initialized;
     var current = await _recorder?.current(channel: 0);
     print(current);
@@ -75,7 +80,7 @@ class _MyHomePageState extends State<RecordAudioScreen2> {
       _current = current;
       _currentStatus = current!.status!;
       print(_currentStatus);
-    });
+    });*/
   }
 
   formattedTime({required int timeInSecond}) async {
@@ -144,14 +149,14 @@ class _MyHomePageState extends State<RecordAudioScreen2> {
             SizedBox(height: 20),
 
 
-            _current!=null?Center(
+            /*_current!=null?Center(
               child: Text(
-                _printDuration(_current!.duration),
+               // _printDuration(_current!.duration),
                 style: TextStyle(fontSize: 30, color: Colors.black),
               ),
             ):Container(),
 
-            SizedBox(height: 20),
+            SizedBox(height: 20),*/
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -175,7 +180,8 @@ class _MyHomePageState extends State<RecordAudioScreen2> {
               height: 30,
             ),
 
-            _currentStatus!=RecordingStatus.Unset && _currentStatus==RecordingStatus.Stopped?
+          //  _currentStatus!=RecordingStatus.Unset && _currentStatus==RecordingStatus.Stopped?
+            !isRecording && pathToAudio != null?
             ElevatedButton.icon(
               style:
               ElevatedButton.styleFrom(elevation: 9.0),
@@ -211,8 +217,8 @@ class _MyHomePageState extends State<RecordAudioScreen2> {
 
 
             SizedBox(height: 40),
-            _currentStatus!=RecordingStatus.Unset && _currentStatus==RecordingStatus.Stopped?
-
+           // _currentStatus!=RecordingStatus.Unset && _currentStatus==RecordingStatus.Stopped?
+            !isRecording && pathToAudio != null?
             InkWell(
               onTap: () {
 
@@ -289,19 +295,27 @@ class _MyHomePageState extends State<RecordAudioScreen2> {
 
 
   _stop() async {
-    var result = await _recorder?.stop();
+   /* var result = await _recorder?.stop();
     print("Stop recording: ${result?.path}");
     print("Stop recording: ${result?.duration}");
-    /*File file = File(result?.path.toString());
-    print("File length: ${await file.length()}");*/
+    *//*File file = File(result?.path.toString());
+    print("File length: ${await file.length()}");*//*
     setState(() {
       _current = result;
       _currentStatus = _current!.status!;
       pathToAudio=result?.path.toString();
+    });*/
+    String? path = await _recorder.stop();
+
+    setState(() {
+      isRecording = false;
+      pathToAudio = path;
     });
+
+    print("Recorded file: $path");
   }
   _startRec() async {
-    try {
+    /*try {
       await _recorder?.start();
       var recording = await _recorder?.current(channel: 0);
       setState(() {
@@ -321,6 +335,25 @@ class _MyHomePageState extends State<RecordAudioScreen2> {
           _currentStatus = _current!.status!;
         });
       });
+    } catch (e) {
+      print(e);
+    }*/
+    try {
+      if (await _recorder.hasPermission()) {
+        await _recorder.start(
+          const RecordConfig(),
+          path: pathToAudio??"",
+        );
+
+        setState(() {
+          isRecording = true;
+        });
+      }else{
+        Toast.show("Microphone permission required",
+            duration: Toast.lengthLong,
+            gravity: Toast.bottom);
+        return;
+      }
     } catch (e) {
       print(e);
     }
@@ -387,8 +420,9 @@ class _MyHomePageState extends State<RecordAudioScreen2> {
 
 @override
   void dispose() {
-    // TODO: implement dispose
-    super.dispose();
+  _recorder.dispose();
+  audioPlayer.dispose();
+  super.dispose();
   }
   String _printDuration(Duration? duration) {
     String negativeSign = duration!.isNegative ? '-' : '';

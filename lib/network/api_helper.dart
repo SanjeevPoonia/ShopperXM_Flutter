@@ -13,6 +13,44 @@ import 'package:http/http.dart' as http;
 
 class ApiBaseHelper {
   final String _baseUrl = AppConstant.productionBaseUrl;
+  final String _gluepleBaseUrl=AppConstant.glueplBaseUrl;
+  Future<dynamic> getPublic(String url) async {
+
+    print(url+'  API CALLED');
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print(jsonDecode(response.body));
+      return response;
+
+    } on SocketException {
+      throw Exception('No Internet');
+    }
+  }
+  Future<dynamic> getDigi(String url, BuildContext context,String header) async {
+    var responseJson;
+    print(url+'  API CALLED');
+    try {
+      final response = await http.get(Uri.parse(url), headers: {
+        'Content-Type': 'application/json',
+        'Accept':'application/json',
+        'X-Requested-With':'XMLHttpRequest',
+        'Authorization':header
+      });
+      var decodedJson=jsonDecode(response.body.toString());
+      print(decodedJson);
+
+      responseJson = response;
+    } on SocketException {
+      throw FetchDataException('No Internet connection');
+    }
+    return responseJson;
+  }
   Future<dynamic> get(String url, BuildContext context) async {
     var responseJson;
     print(url+'  API CALLED');
@@ -31,8 +69,6 @@ class ApiBaseHelper {
     }
     return responseJson;
   }
-
-
   Future<dynamic> getWithToken(String baseUrl,String url,String token, BuildContext context) async {
     var responseJson;
     print(baseUrl+url+'  API CALLED');
@@ -52,7 +88,6 @@ class ApiBaseHelper {
     }
     return responseJson;
   }
-
   Future<dynamic> postAPI(
       String url, var apiParams, BuildContext context) async {
     print("API CALLED");
@@ -79,6 +114,44 @@ class ApiBaseHelper {
     return responseJson;
   }
 
+  Future<dynamic> postAPIWithHeaderForDigi(String url, var apiParams, BuildContext context,String header) async {
+    print(url+'  API CALLED');
+    print(apiParams.toString());
+    var responseJson;
+    try {
+      final response = await http.post(Uri.parse(url),
+          body: jsonEncode(apiParams),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept':'application/json',
+            'Authorization':header
+          }
+      );
+      responseJson=response;
+    } on SocketException {
+      throw FetchDataException('No Internet connection');
+    }
+    return responseJson;
+  }
+  Future<dynamic> getWithHeader(String url, BuildContext context) async {
+    var responseJson;
+    print(_baseUrl+url+'  API CALLED');
+    try {
+      final response = await http.get(Uri.parse(_baseUrl + url), headers: {
+        'Content-Type': 'application/json',
+        'Accept':'application/json',
+        'X-Requested-With':'XMLHttpRequest',
+        'Authorization':AppModel.token
+      });
+      var decodedJson=jsonDecode(response.body.toString());
+      print(decodedJson);
+
+      responseJson = _returnResponse(response, context);
+    } on SocketException {
+      throw FetchDataException('No Internet connection');
+    }
+    return responseJson;
+  }
   Future<dynamic> postAPIWithHeader(String url, var apiParams, BuildContext context) async {
     print(_baseUrl+url+'  API CALLED');
     print("Token");
@@ -119,8 +192,6 @@ class ApiBaseHelper {
     }
     return responseJson;
   }
-
-
   Future<dynamic> postAPIWithHeaderProd(String url, var apiParams, BuildContext context) async {
     print(AppConstant.productionBaseUrl+url+'  API CALLED');
     print("Token");
@@ -153,10 +224,6 @@ class ApiBaseHelper {
     }
     return responseJson;
   }
-
-
-
-
   Future<dynamic> aadhaarOTPAPI(String url, var apiParams, BuildContext context,String authKey) async {
     print(url+'  API CALLED');
     print(apiParams.toString());
@@ -179,11 +246,6 @@ class ApiBaseHelper {
     }
     return responseJson;
   }
-
-
-
-
-
   dynamic _returnResponse(http.Response response, BuildContext context) {
    // var responseJson = jsonDecode(response.body.toString());
     print(response.statusCode.toString() +'Status Code******* ');
@@ -244,5 +306,31 @@ class ApiBaseHelper {
         context,
         MaterialPageRoute(builder: (context) => LoginScreen()),
             (Route<dynamic> route) => false);
+  }
+
+  Future<dynamic> postAPIGlueple(
+      String url, var apiParams, BuildContext context) async {
+    print("API CALLED");
+    print(_gluepleBaseUrl + url);
+    print(apiParams.toString());
+
+    var responseJson;
+    try {
+      final response = await http.post(Uri.parse(_gluepleBaseUrl + url),
+          body: json.encode(apiParams),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept':'application/json',
+            'X-Requested-With':'XMLHttpRequest'
+          }
+      );
+      var decodedJson=jsonDecode(response.body.toString());
+      print(decodedJson);
+
+      responseJson = _returnResponse(response, context);
+    } on SocketException {
+      throw FetchDataException('No Internet connection');
+    }
+    return responseJson;
   }
 }

@@ -303,7 +303,9 @@ class MenuState extends State<ClaimReimbursementScreen> {
 
                 InkWell(
                     onTap: (){
-                       Navigator.push(context, PageTransition(type: PageTransitionType.leftToRight, child: ReimbursementFormScreen()));
+                       Navigator.push(context, PageTransition(type: PageTransitionType.leftToRight, child: ReimbursementFormScreen())).then((value){
+                         getClaimList(context);
+                       });
 
                     },
 
@@ -487,6 +489,7 @@ class MenuState extends State<ClaimReimbursementScreen> {
     var response = await helper.postAPIWithHeader('actualTransactionClaimList', data, context);
     var responseJSON = json.decode(response.body);
     print(responseJSON['data']);
+    claimList.clear();
     claimList = responseJSON['data'];
     setState(() {
       isLoading=false;

@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
+import 'package:shopperxm_flutter/screen/barcode_scanner/shopper_barcode_tag_screen.dart';
 
 import '../utils/app_theme.dart';
 import 'notification/notification_screen.dart';
@@ -85,12 +86,22 @@ class _ZoomScaffoldState extends State<ZoomScaffold>
                           )),
 
 
-                      Text(widget.pageTitle,
+                      Expanded(child: Center(child: Text(widget.pageTitle,
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                             color: Colors.black,
-                          )),
+                          )),),),
+
+
+                      GestureDetector(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context)=>ShopperBarcodeTagScreen()));
+                          },
+                          child:Image.asset("assets/scanner.png",width: 23,height: 23)),
+
+                      SizedBox(width: 15,),
+
                       GestureDetector(
                           onTap: () {
                             Navigator.push(context, MaterialPageRoute(builder: (context)=>NotificationScreen()));

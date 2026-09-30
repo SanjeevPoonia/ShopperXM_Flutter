@@ -9,7 +9,7 @@ import 'package:lottie/lottie.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shopperxm_flutter/screen/audits/record_audio_screen.dart';
+//import 'package:shopperxm_flutter/screen/audits/record_audio_screen.dart';
 import 'package:shopperxm_flutter/screen/audits/record_video_screen.dart';
 import 'package:shopperxm_flutter/screen/start_audit/audit_form.dart';
 import 'package:shopperxm_flutter/utils/app_theme.dart';
@@ -19,8 +19,10 @@ import 'package:shopperxm_flutter/screen/zoom_scaffold.dart' as MEN;
 
 import '../../network/api_helper.dart';
 import '../../network/loader.dart';
+import '../../recording/recording_screen.dart';
 import '../../utils/app_modal.dart';
 import '../start_audit/audit_intro_screen.dart';
+import 'package:shopperxm_flutter/recording/record_audio_screen.dart';
 
 
 class TaggedAuditsScreen extends StatefulWidget {
@@ -47,8 +49,13 @@ class MenuState extends State<TaggedAuditsScreen> {
     "Address",
     "Code",
   ];
+
+  bool isAndroidDevice=false;
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+      '########## BUILDING TaggedAuditsScreen ##########',
+    );
     ToastContext().init(context);
     return SafeArea(
       child: Scaffold(
@@ -450,13 +457,21 @@ class MenuState extends State<TaggedAuditsScreen> {
 
                                   SizedBox(width: 13),
 
+                                  isAndroidDevice?
                                   Expanded(
+
                                     flex: 1,
                                     child: InkWell(
-                                      onTap: (){
-                                        Navigator.push(context, PageTransition(type: PageTransitionType.bottomToTop, child: RecordVideoScreen(searchList[pos]['store_code']+"("+searchList[pos]["client_name"]+")" ?? '',searchList[pos]['store_name'] ?? '',searchList[pos]['store_address'] ?? '',searchList[pos]["store_id"].toString())));
-
-                                      },
+                                      onTap: () {
+                                        // Navigator.push(context, PageTransition(type: PageTransitionType.bottomToTop, child: RecordVideoScreen(searchList[pos]['store_code']+"("+searchList[pos]["client_name"]+")" ?? '',searchList[pos]['store_name'] ?? '',searchList[pos]['store_address'] ?? '',searchList[pos]["store_id"].toString())));
+                                         redirectToRecordVideo(
+                                             searchList[pos]["store_id"]?.toString()??'',
+                                             searchList[pos]['store_name']?.toString() ?? '',
+                                             searchList[pos]['store_code']?.toString()??"",
+                                             searchList[pos]["beat_plan_id"]?.toString()??"",
+                                             searchList[pos]['store_address']?.toString() ?? ''
+                                         );
+                                         },
                                       child: Container(
                                         margin: EdgeInsets.only(top: 1),
                                         height:48,
@@ -497,7 +512,7 @@ class MenuState extends State<TaggedAuditsScreen> {
                                         ),
                                       ),
                                     ),
-                                  )
+                                  ):SizedBox()
                                 ],
                               ),
 
@@ -505,13 +520,31 @@ class MenuState extends State<TaggedAuditsScreen> {
                               SizedBox(height: 10),
 
 
-                              Row(
+                              isAndroidDevice?Row(
                                 children: [
                                   Expanded(
                                     flex: 1,
                                     child: InkWell(
                                       onTap: (){
-                                        Navigator.push(context, PageTransition(type: PageTransitionType.bottomToTop, child: RecordAudioScreen(searchList[pos]['store_code']+"("+searchList[pos]["client_name"]+")" ?? '',searchList[pos]['store_name'] ?? '',searchList[pos]['store_address'] ?? '',searchList[pos]["store_id"].toString())));
+                                        /*Navigator.push(context, PageTransition(
+                                            type: PageTransitionType.bottomToTop,
+                                            child: RecordAudioScreen(
+                                                searchList[pos]['store_code']+"("+searchList[pos]["client_name"]+")" ?? '',
+                                                searchList[pos]['store_name'] ?? '',searchList[pos]['store_address'] ?? '',
+                                                searchList[pos]["store_id"].toString())));*/
+
+                                        Navigator.push(
+                                            context,
+                                            PageTransition(
+                                                type: PageTransitionType.bottomToTop,
+                                                child: RecordAudioScreen(
+                                                  auditId: searchList[pos]['beat_plan_id']?.toString()??"",
+                                                  storeCode: searchList[pos]['store_code'].toString(),
+                                                  storeName: searchList[pos]['store_name']?.toString()??"",
+                                                  storeAddress: searchList[pos]['store_address']?.toString()??'',
+                                                  auditDate: searchList[pos]["audit_date"]?.toString()??'',
+
+                                                )));
 
                                       },
                                       child: Container(
@@ -563,7 +596,7 @@ class MenuState extends State<TaggedAuditsScreen> {
                                       child: Container()
                                   )
                                 ],
-                              ),
+                              ):SizedBox(),
 
                               SizedBox(height: 20)
                             ],
@@ -579,9 +612,6 @@ class MenuState extends State<TaggedAuditsScreen> {
 
 
               ):
-
-
-
               ListView.builder(
                   itemCount: taggedList.length,
                   padding: const EdgeInsets.only(bottom: 70,top: 6,left: 12,right: 12),
@@ -833,12 +863,21 @@ class MenuState extends State<TaggedAuditsScreen> {
 
                                   SizedBox(width: 13),
 
+                                  isAndroidDevice?
                                   Expanded(
                                     flex: 1,
                                     child: InkWell(
                                       onTap: (){
-                                        Navigator.push(context, PageTransition(type: PageTransitionType.bottomToTop, child: RecordVideoScreen(taggedList[pos]['store_code']+"("+taggedList[pos]["client_name"]+")" ?? '',taggedList[pos]['store_name'] ?? '',taggedList[pos]['store_address'] ?? '',taggedList[pos]["store_id"].toString())));
-
+                                        /*Navigator.push(context, PageTransition(type: PageTransitionType.bottomToTop,
+                                            child: RecordVideoScreen
+                                              (taggedList[pos]['store_code']+"("+taggedList[pos]["client_name"]+")" ?? '',taggedList[pos]['store_name'] ?? '',taggedList[pos]['store_address'] ?? '',taggedList[pos]["store_id"].toString())));*/
+                                        redirectToRecordVideo(
+                                            taggedList[pos]["store_id"]?.toString()??"",
+                                            taggedList[pos]['store_name']?.toString() ?? '',
+                                            taggedList[pos]['store_code']?.toString()??"",
+                                            taggedList[pos]['beat_plan_id']?.toString()??"",
+                                            taggedList[pos]['store_address']?.toString() ?? ''
+                                        );
                                       },
                                       child: Container(
                                         margin: EdgeInsets.only(top: 1),
@@ -880,7 +919,7 @@ class MenuState extends State<TaggedAuditsScreen> {
                                         ),
                                       ),
                                     ),
-                                  )
+                                  ):SizedBox()
                                 ],
                               ),
 
@@ -888,13 +927,33 @@ class MenuState extends State<TaggedAuditsScreen> {
                               SizedBox(height: 10),
 
 
-                              Row(
+                              isAndroidDevice?Row(
                                 children: [
                                   Expanded(
                                     flex: 1,
                                     child: InkWell(
                                       onTap: (){
-                                        Navigator.push(context, PageTransition(type: PageTransitionType.bottomToTop, child: RecordAudioScreen(taggedList[pos]['store_code']+"("+taggedList[pos]["client_name"]+")" ?? '',taggedList[pos]['store_name'] ?? '',taggedList[pos]['store_address'] ?? '',taggedList[pos]["store_id"].toString())));
+                                       /* Navigator.push(
+                                            context,
+                                            PageTransition(
+                                                type: PageTransitionType.bottomToTop,
+                                                child: RecordAudioScreen(
+                                                    taggedList[pos]['store_code']+"("+taggedList[pos]["client_name"]+")" ?? '',
+                                                    taggedList[pos]['store_name'] ?? '',
+                                                    taggedList[pos]['store_address'] ?? '',
+                                                    taggedList[pos]["store_id"].toString())));*/
+                                        Navigator.push(
+                                            context,
+                                            PageTransition(
+                                                type: PageTransitionType.bottomToTop,
+                                                child: RecordAudioScreen(
+                                                    auditId: taggedList[pos]['beat_plan_id']?.toString()??"",
+                                                    storeCode: taggedList[pos]['store_code'].toString(),
+                                                    storeName: taggedList[pos]['store_name']?.toString()??"",
+                                                    storeAddress: taggedList[pos]['store_address']?.toString()??'',
+                                                    auditDate: taggedList[pos]["audit_date"]?.toString()??'',
+
+                                                    )));
 
                                       },
                                       child: Container(
@@ -946,7 +1005,7 @@ class MenuState extends State<TaggedAuditsScreen> {
                                     child: Container()
                                   )
                                 ],
-                              ),
+                              ):SizedBox(),
 
                               SizedBox(height: 20)
                             ],
@@ -1477,8 +1536,18 @@ class MenuState extends State<TaggedAuditsScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
+    if(Platform.isAndroid){
+      isAndroidDevice=true;
+    }
+    debugPrint(
+      '########## INIT TaggedAuditsScreen ##########',
+    );
+
+    debugPrint(
+      'Platform: ${Platform.operatingSystem}',
+    );
+
     getTaggedAuditList(context);
   }
   String getDistance(double distance)
@@ -1486,6 +1555,37 @@ class MenuState extends State<TaggedAuditsScreen> {
     double distanceAsInt=distance/1000;
     int dis=distanceAsInt.toInt();
     return dis.toString();
+
+  }
+
+  String _generateRecordingFileName(String storeId) {
+    final timestamp =
+        DateTime.now().millisecondsSinceEpoch;
+
+    return 'shop_${storeId}_$timestamp.mp4';
+  }
+
+  void redirectToRecordVideo(String storeId, String storeName,String storeCode, String beatplanId,String storeAddress){
+
+
+
+    print('************************video Recording***********************************');
+    String fileName=_generateRecordingFileName(storeId);
+
+    Navigator.push(context, PageTransition(type: PageTransitionType.bottomToTop,
+        child: RecordingScreen(
+          userId: AppModel.userID,
+            storeId: storeId,
+            storeName: storeName,
+            storeCode: storeCode,
+            beatplanId: beatplanId,
+            authKey: AppModel.token,
+            storeAddress: storeAddress,
+            quality: 'Low',
+            camera: 1,
+        )
+    )
+    );
 
   }
 
