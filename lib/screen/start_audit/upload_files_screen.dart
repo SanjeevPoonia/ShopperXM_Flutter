@@ -614,6 +614,7 @@ class MenuState extends State<UploadFilesScreen> {
         "store_id": widget.storeID,
         "user_id": AppModel.userID,
         "token": AppModel.token,
+        "device_id": 'flutter_app',
       },
       constraints: Constraints(
         networkType: NetworkType.connected,

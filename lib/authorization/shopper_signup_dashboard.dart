@@ -139,7 +139,6 @@ class _ShopperSignupDashboardScreenState
   void getAuditListFromServer() async {
     getFreelanceAuditList();
   }
-
   Future<void> getFreelanceAuditList() async {
     APIDialog.showAlertDialog(context, "Loading...");
 
@@ -187,7 +186,6 @@ class _ShopperSignupDashboardScreenState
   }
 
   // ================= MAP =================
-
   void addStoreMarker() {
     markers.clear();
 
@@ -233,9 +231,7 @@ class _ShopperSignupDashboardScreenState
 
     setState(() {});
   }
-
   // ================= AWS =================
-
   Future<void> getAwsDetails() async {
     ApiBaseHelper helper = ApiBaseHelper();
 
@@ -264,7 +260,6 @@ class _ShopperSignupDashboardScreenState
           secret: config.secret);
     }
   }
-
   // ================= UI =================
 
   @override

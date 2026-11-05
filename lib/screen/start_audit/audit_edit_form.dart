@@ -1056,7 +1056,7 @@ class MenuState extends State<AuditEditFormScreen> {
     questionList = responseJSON["data"]["questions"];
     parentList = responseJSON["data"]["parent_group"];
 
-    isVideoRequired = responseJSON["data"]["allow_overall_video"];
+    isVideoRequired = responseJSON["data"]["is_video_required"];
     isImageRequired = responseJSON["data"]["is_multiple_image_required"];
     isAudioRequired = responseJSON["data"]["is_audio_required"];
 

@@ -3,11 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:toast/toast.dart';
 
 import '../../network/Utils.dart';
 import '../../network/api_helper.dart';
+import '../../services/s3_upload_service.dart';
+import '../../utils/app_modal.dart';
 
 class ProfileAdditioninfoScreen extends StatefulWidget {
   const ProfileAdditioninfoScreen({
@@ -567,8 +570,9 @@ class _AdditionalInfoScreenState extends State<ProfileAdditioninfoScreen> {
       if (selected == null) return;
 
       final file = File(selected.path);
+      uploadSelectedFile(selected.path, type);
 
-      setState(() {
+      /*setState(() {
         if (type == 1) {
           tenthMarksheet = file;
         } else if (type == 2) {
@@ -578,14 +582,11 @@ class _AdditionalInfoScreenState extends State<ProfileAdditioninfoScreen> {
         }
       });
 
-      /*
-       * Java implementation uploads immediately after
-       * selecting the image.
-       */
+     
       await _uploadImageToS3(
         file: file,
         type: type,
-      );
+      );*/
     } catch (e) {
       debugPrint(
         'Image selection error: $e',
@@ -600,6 +601,71 @@ class _AdditionalInfoScreenState extends State<ProfileAdditioninfoScreen> {
   // ============================================================
   // S3 UPLOAD
   // ============================================================
+
+  Future<void> uploadSelectedFile(String filePath , int fileType) async {
+    File selectedFile=File(filePath);
+    String currentTime = DateTime.now().millisecondsSinceEpoch.toString();
+    final String extension = path.extension(selectedFile.path);
+    String fileName = "";
+    print("Filename $fileName");
+
+    String dialogTitle="Uploading, KYC image";
+    if (fileType == 1) {
+      dialogTitle="Uploading, 10th Image.";
+      fileName="${userId}image_10th${currentTime}s3$extension";
+    }else if(fileType ==2) {
+      dialogTitle="Uploading, 12th Image.";
+      fileName="${userId}image_12th${currentTime}s3$extension";
+    }else{
+      dialogTitle="Uploading, Certificate Image.";
+      fileName="${userId}image_certificate${currentTime}s3$extension";
+    }
+
+    try {
+      final uploadedUrl = await S3UploadService.uploadFile(
+        context: context,
+        file: selectedFile,
+        fileName: fileName,
+        fileType: 'image',
+        folder: 'store_img',
+        dialogTitle: dialogTitle,
+        apiHeaders: {
+          'Authorization': AppModel.token,
+        },
+      );
+
+      if (!mounted || uploadedUrl == null) return;
+
+      debugPrint('Uploaded file URL: $uploadedUrl');
+
+      if(fileType==1){
+        aws10th=uploadedUrl;
+        tenthMarksheet=selectedFile;
+
+      }else if(fileType==2){
+        aws12=uploadedUrl;
+        twelfthMarksheet=selectedFile;
+
+      }else{
+        awsCertificate=uploadedUrl;
+        educationCertificate=selectedFile;
+
+      }
+      setState(() {
+
+      });
+
+      // Save uploadedUrl in your form or send it to your API.
+    } catch (e) {
+      debugPrint('File upload failed: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $e')),
+      );
+    }
+  }
 
   Future<void> _uploadImageToS3({
     required File file,

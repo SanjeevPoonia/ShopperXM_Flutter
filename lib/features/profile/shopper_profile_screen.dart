@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +7,6 @@ import 'package:shopperxm_flutter/features/profile/profile_basic_info_screen.dar
 import 'package:shopperxm_flutter/features/profile/profile_kycinfo_screen.dart';
 import 'package:shopperxm_flutter/features/profile/profile_payment_info_screen.dart';
 import 'package:toast/toast.dart';
-
 import '../../network/api_dialog.dart';
 import '../../network/api_helper.dart';
 import '../../network/Utils.dart';

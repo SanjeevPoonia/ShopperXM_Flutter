@@ -1242,20 +1242,11 @@ class MenuState extends State<AuditFormScreen> {
     questionList=responseJSON["data"]["questions"];
     parentList=responseJSON["data"]["parent_group"];
 
-    isVideoRequired=responseJSON["data"]["allow_overall_video"];
+    isVideoRequired=responseJSON["data"]["is_video_required"];
     isImageRequired=responseJSON["data"]["is_multiple_image_required"];
     isAudioRequired=responseJSON["data"]["is_audio_required"];
 
-
-
-
     log("List IS "+parentList.length.toString());
-
-
-
-
-
-
     setState(() {
 
     });
@@ -1263,14 +1254,12 @@ class MenuState extends State<AuditFormScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     if(widget.auditType=="tagged")
       {
         fetchLocalData();
       }
     checkInternet();
-
   }
 
   checkInternet()async{
@@ -1278,7 +1267,6 @@ class MenuState extends State<AuditFormScreen> {
         .checkConnectivity());
     if (connectivityResult5 != ConnectivityResult.none) {
       getQuestionList(context);
-
      // Navigator.pop(context);
     }
     else
@@ -1289,12 +1277,6 @@ class MenuState extends State<AuditFormScreen> {
             backgroundColor: Colors.red);
       }
   }
-
-
-
-
-
-
   void _submitHandler(BuildContext context) async {
     if (!_formKey.currentState!.validate()) {
       return;

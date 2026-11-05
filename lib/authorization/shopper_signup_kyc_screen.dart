@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
 import 'package:shopperxm_flutter/authorization/shopper_verifyaadhaar_screen.dart';
 import 'package:shopperxm_flutter/network/constants.dart';
 import 'package:shopperxm_flutter/screen/landing_screen.dart';
@@ -12,6 +13,8 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import '../network/Utils.dart';
 import '../network/api_dialog.dart';
 import '../network/api_helper.dart';
+import '../services/s3_upload_service.dart';
+import '../utils/app_modal.dart';
 
 class ShopperSignupKycScreen extends StatefulWidget {
   const ShopperSignupKycScreen({super.key});
@@ -99,10 +102,15 @@ class _ShopperSignupKycScreenState
                       onPressed: () {
                         Navigator.pop(context);
 
-                        if (type == "aadhaar") {
+                        /*if (type == "aadhaar") {
                           uploadAadhaar(path);
                         } else {
                           uploadPan(path);
+                        }*/
+                        if (type == "aadhaar") {
+                          uploadAadhaar(path);
+                        } else {
+                          uploadSelectedFile(path, "pan");
                         }
                       },
                       child: const Text("Upload"),
@@ -126,21 +134,60 @@ class _ShopperSignupKycScreenState
       showMsg("Please upload valid Aadhaar front image");
       return;
     }
-
-
-    setState(() {
-      aadhaarImagePath = path;
-      aadhaarImageUrl = "uploaded_url";
-    });
+    uploadSelectedFile(path, "aadhaar");
   }
+  Future<void> uploadSelectedFile(String filePath , String fileType) async {
+    File selectedFile=File(filePath);
+    String currentTime = DateTime.now().millisecondsSinceEpoch.toString();
+    final String extension = path.extension(selectedFile.path);
+    String fileName = "${userId}image_bank${currentTime}s3$extension";
+    print("Filename $fileName");
 
-  void uploadPan(String path) {
-    // TODO: Implement S3 upload using presigned URL
+    String dialogTitle="Uploading, KYC image";
+    if (fileType == "aadhaar") {
+      dialogTitle="Uploading, Aadhaar Image.";
+    }else {
+      dialogTitle="Uploading, PAN Image.";
+    }
 
-    setState(() {
-      panImagePath = path;
-      panImageUrl = "uploaded_url";
-    });
+    try {
+      final uploadedUrl = await S3UploadService.uploadFile(
+        context: context,
+        file: selectedFile,
+        fileName: fileName,
+        fileType: 'image',
+        folder: 'store_img',
+        dialogTitle: dialogTitle,
+        apiHeaders: {
+          'Authorization': AppModel.token,
+        },
+      );
+
+      if (!mounted || uploadedUrl == null) return;
+
+      debugPrint('Uploaded file URL: $uploadedUrl');
+
+      if (fileType == "aadhaar") {
+        aadhaarImageUrl=uploadedUrl;
+        aadhaarImagePath = filePath;
+      }else {
+        panImageUrl = uploadedUrl;
+        panImagePath=filePath;
+      }
+      setState(() {
+
+      });
+
+      // Save uploadedUrl in your form or send it to your API.
+    } catch (e) {
+      debugPrint('File upload failed: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $e')),
+      );
+    }
   }
 
   // ================= VALIDATION =================

@@ -1688,7 +1688,7 @@ class MenuState extends State<FillAuditScreen> {
 
     var data = {
       "store_id":widget.storeID,
-      "is_all_submit":currentIndex==currentQuestionList.length-1?"1":"0",
+      "is_all_submit":currentIndex==parentList.length-1?"1":"0",
       "response":dataObj.toString(),
       "scenario_id":widget.scenarioID,
       "audit_id":"0",
@@ -1717,7 +1717,11 @@ class MenuState extends State<FillAuditScreen> {
           backgroundColor: Colors.green);
 
 
-      if(currentIndex!=currentQuestionList.length-1)
+      print('Current Index : $currentIndex');
+      print('Question Length : ${currentQuestionList.length}');
+      print('Parent Length : ${parentList.length}');
+
+      if(currentIndex!=parentList.length-1)
         {
           currentIndex=currentIndex+1;
           setState(() {
@@ -1726,14 +1730,10 @@ class MenuState extends State<FillAuditScreen> {
           updateValues();
         }
 
-      else if(currentIndex==currentQuestionList.length-1)
+      else if(currentIndex==parentList.length-1)
         {
-
-
           APIDialog.showAlertDialog(context, "Fetching Files");
-
-
-          for(int i=0;i<artifactList.length;i++)
+         /* for(int i=0;i<artifactList.length;i++)
             {
 
               if(i==0)
@@ -1742,8 +1742,6 @@ class MenuState extends State<FillAuditScreen> {
                       duration: Toast.lengthLong,
                       gravity: Toast.bottom,
                       backgroundColor: Colors.blue);
-
-
                   SharedPreferences preferences = await SharedPreferences.getInstance();
                   preferences.setString("file_list", null!);
 
@@ -1756,37 +1754,18 @@ class MenuState extends State<FillAuditScreen> {
                   uploadInBackground("2", artifactList[i]["path"]);
                 }
               else{
-
                 uploadInBackground("1", artifactList[i]["path"]);
-
-
               }
 
 
             }
-
-
-
-
-
+*/
           Navigator.pop(context);
-
-
-
           // Files Upload service
-
-
           if(widget.isAudioRequired==1 || widget.isImageRequired==1 || widget.isVideoRequired==1)
             {
-
               Navigator.push(context, MaterialPageRoute(builder: (context)=>UploadFilesScreen(widget.isVideoRequired,widget.isImageRequired,widget.isAudioRequired,widget.storeID,widget.beatPlanID)));
-
             }
-
-
-
-
-
         }
 
 

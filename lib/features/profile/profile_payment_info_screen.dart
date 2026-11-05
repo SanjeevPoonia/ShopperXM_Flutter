@@ -4,12 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:path/path.dart' as path;
 import 'package:shopperxm_flutter/authorization/shopper_signup_kyc_screen.dart';
+import 'package:shopperxm_flutter/network/constants.dart';
 import 'package:toast/toast.dart';
 
 import '../../network/Utils.dart';
 import '../../network/api_dialog.dart';
 import '../../network/api_helper.dart';
+import '../../services/s3_upload_service.dart';
+import '../../utils/app_modal.dart';
 import '../../utils/app_theme.dart';
 
 class ProfilePaymentInfoScreen extends StatefulWidget {
@@ -182,6 +186,7 @@ class _ShopperSignupPaymentInfoScreenState
                   ElevatedButton(
                     onPressed: (){
                       Navigator.pop(context);
+                      uploadSelectedFile(file);
                       //uploadItemOnS3Flutter(file.path, setState);
                     },
                     style: ElevatedButton.styleFrom(
@@ -205,6 +210,54 @@ class _ShopperSignupPaymentInfoScreenState
       },
     );
   }
+
+  //=====================S3 Upload Service =============================
+
+
+
+  Future<void> uploadSelectedFile(File selectedFile) async {
+    String currentTime = DateTime.now().millisecondsSinceEpoch.toString();
+    final String extension = path.extension(selectedFile.path);
+    String fileName = "${userId}image_bank${currentTime}s3$extension";
+    print("Filename $fileName");
+
+    try {
+      final uploadedUrl = await S3UploadService.uploadFile(
+        context: context,
+        file: selectedFile,
+        fileName: fileName,
+        fileType: 'image',
+        folder: 'store_img',
+        dialogTitle: 'Uploading Payment image...',
+        apiHeaders: {
+          'Authorization': AppModel.token,
+        },
+      );
+
+      if (!mounted || uploadedUrl == null) return;
+
+      debugPrint('Uploaded file URL: $uploadedUrl');
+
+      uploadedImageUrl=uploadedUrl;
+      print("Uploaded Image Url: $uploadedImageUrl");
+      setState(() {
+
+      });
+
+      // Save uploadedUrl in your form or send it to your API.
+    } catch (e) {
+      debugPrint('File upload failed: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $e')),
+      );
+    }
+  }
+
+
+
 
   // ================= S3 UPLOAD =================
   Future<void> uploadItemOnS3Flutter(

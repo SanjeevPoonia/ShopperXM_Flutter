@@ -479,7 +479,7 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
                                 InkWell(
                                   onTap: (){
 
-                                    Navigator.push(context, MaterialPageRoute(builder: (context)=>UploadFilesScreen(isVideoRequired,isImageRequired,isAudioRequired,searchList[pos]["store_id"].toString(),searchList[pos]["beatplan_id"].toString())));
+                                    Navigator.push(context, MaterialPageRoute(builder: (context)=>UploadFilesScreen(isVideoRequired,isImageRequired,isAudioRequired,searchList[pos]["store_id"].toString(),searchList[pos]["beat_plan_id"].toString())));
 
 
 
@@ -869,7 +869,7 @@ class MenuState extends State<ArtifactPendingAuditsScreen> {
                               InkWell(
                                 onTap: (){
 
-                                  Navigator.push(context, MaterialPageRoute(builder: (context)=>UploadFilesScreen(isVideoRequired,isImageRequired,isAudioRequired,artifactPendingList[pos]["store_id"].toString(),artifactPendingList[pos]["beatplan_id"].toString())));
+                                  Navigator.push(context, MaterialPageRoute(builder: (context)=>UploadFilesScreen(isVideoRequired,isImageRequired,isAudioRequired,artifactPendingList[pos]["store_id"].toString(),artifactPendingList[pos]["beat_plan_id"].toString())));
 
 
 

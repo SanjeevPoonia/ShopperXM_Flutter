@@ -749,7 +749,6 @@ class MenuState extends State<FillAuditEditScreen> {
       )),
     );
   }
-
   void successBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -941,7 +940,6 @@ class MenuState extends State<FillAuditEditScreen> {
       },
     );
   }
-
   _showPictureDialog(int pos) {
     showGeneralDialog(
       barrierLabel: "Label",
@@ -1074,7 +1072,6 @@ class MenuState extends State<FillAuditEditScreen> {
       },
     );
   }
-
   void uploadFilesBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -1321,7 +1318,6 @@ class MenuState extends State<FillAuditEditScreen> {
       },
     );
   }
-
   void selectInfoBottomSheet(BuildContext context, String question) {
     showModalBottomSheet(
       context: context,
@@ -1427,7 +1423,6 @@ class MenuState extends State<FillAuditEditScreen> {
       },
     );
   }
-
   @override
   void initState() {
     // TODO: implement initState
@@ -1437,22 +1432,16 @@ class MenuState extends State<FillAuditEditScreen> {
     log("ID IS"+parentList.length.toString());
     updateValues(true);
   }
-
   updateValues(bool editEnabled) {
     currentQuestionList.clear();
-
     setState(() {});
-
     String parentGroupID = parentList[currentIndex]["group_id"].toString();
-
     print("Current group id " + parentGroupID);
-
     for (int i = 0; i < questionList.length; i++) {
       if (questionList[i]["parent_group_id"].toString() == parentGroupID) {
         currentQuestionList.add(questionList[i]);
       }
     }
-
     radioSelectionList.clear();
     imagePathList.clear();
     startTimeList.clear();
@@ -1488,7 +1477,6 @@ class MenuState extends State<FillAuditEditScreen> {
 
     setState(() {});
   }
-
   showTimeDialog(int type) {
     showDialog(
       context: context,
@@ -1520,7 +1508,6 @@ class MenuState extends State<FillAuditEditScreen> {
       },
     );
   }
-
   validateValues(){
     bool radioData=true;
     bool remarkData=true;
@@ -1578,10 +1565,6 @@ class MenuState extends State<FillAuditEditScreen> {
 
 
   }
-
-
-
-
   _fetchImage(int pos,questionID) async {
     final ImagePicker _picker = ImagePicker();
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
@@ -1638,9 +1621,6 @@ class MenuState extends State<FillAuditEditScreen> {
           backgroundColor: Colors.red);
     }
   }
-
-
-
   submitAnswers(BuildContext context) async {
     FocusScope.of(context).unfocus();
     APIDialog.showAlertDialog(context, 'Submitting answers...');
@@ -1661,17 +1641,13 @@ class MenuState extends State<FillAuditEditScreen> {
           "token":AppModel.token,
         });
       }
-
-
     Map<String,dynamic> dataObj={
       json.encode("audit_data"):json.encode(auditData)
     };
-
     log("Audit DAt   "+auditData.toString());
-
     var data = {
       "store_id":widget.storeID,
-      "is_all_submit":currentIndex==currentQuestionList.length-1?"1":"0",
+      "is_all_submit":currentIndex==parentList.length-1?"1":"0",
       "response":dataObj.toString(),
       "scenario_id":widget.scenarioID,
       "audit_id":"0",
@@ -1686,7 +1662,6 @@ class MenuState extends State<FillAuditEditScreen> {
     };
     print("PAYLOAD");
     log(data.toString());
-
     ApiBaseHelper helper = ApiBaseHelper();
     var response =
     await helper.postAPIWithHeaderProd('saveAudit', data, context);
@@ -1699,24 +1674,33 @@ class MenuState extends State<FillAuditEditScreen> {
           gravity: Toast.bottom,
           backgroundColor: Colors.green);
 
+      print('Current Index : $currentIndex');
+      print('Question Length : ${currentQuestionList.length}');
+      print('Parent Length : ${parentList.length}');
 
-      if(currentIndex!=currentQuestionList.length-1)
+
+      if(currentIndex!=parentList.length-1)
         {
           currentIndex=currentIndex+1;
           setState(() {
 
           });
-          updateValues(false);
+          updateValues(true);
         }
 
-      else if(currentIndex==currentQuestionList.length-1)
+      else if(currentIndex==parentList.length-1)
         {
 
 
           if(widget.isAudioRequired==1 || widget.isImageRequired==1 || widget.isVideoRequired==1)
             {
 
-              Navigator.push(context, MaterialPageRoute(builder: (context)=>UploadFilesScreen(widget.isVideoRequired,widget.isImageRequired,widget.isAudioRequired,widget.storeID,widget.beatPlanID)));
+              Navigator.push(context, MaterialPageRoute(builder: (context)=>UploadFilesScreen(
+                  widget.isVideoRequired,
+                  widget.isImageRequired,
+                  widget.isAudioRequired,
+                  widget.storeID,
+                  widget.beatPlanID)));
 
             }
 
@@ -1737,8 +1721,6 @@ class MenuState extends State<FillAuditEditScreen> {
           backgroundColor: Colors.red);
     }
   }
-
-
   _fetchImageFromCamera(BuildContext context,int pos,String questionID) async {
     final ImagePicker _picker = ImagePicker();
     final XFile? image = await _picker.pickImage(source: ImageSource.camera);
