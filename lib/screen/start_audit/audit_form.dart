@@ -1242,9 +1242,9 @@ class MenuState extends State<AuditFormScreen> {
     questionList=responseJSON["data"]["questions"];
     parentList=responseJSON["data"]["parent_group"];
 
-    isVideoRequired=responseJSON["data"]["is_video_required"];
-    isImageRequired=responseJSON["data"]["is_multiple_image_required"];
-    isAudioRequired=responseJSON["data"]["is_audio_required"];
+    isVideoRequired=responseJSON["data"]?["is_video_required"]??0;
+    isImageRequired=responseJSON["data"]?["is_multiple_image_required"]??0;
+    isAudioRequired=responseJSON["data"]?["is_audio_required"]??0;
 
     log("List IS "+parentList.length.toString());
     setState(() {

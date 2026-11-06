@@ -3,10 +3,13 @@ class AppConstant
 {
   // Staging server
 
-  static String appBaseURL='https://retailanalytics.qdegrees.com/api/';
-//  static String appBaseURL='https://stagingretailanalytics.qdegrees.com/api/';
+  static String appBaseURL='https://shopperxm.qdegrees.com/api/';
   //static String appBaseURL='https://retailanalytics.qdegrees.com/api/';
-  static String productionBaseUrl='https://retailanalytics.qdegrees.com/api/';
+  //static String appBaseURL='https://stagingretailanalytics.qdegrees.com/api/';
+  //static String appBaseURL='https://retailanalytics.qdegrees.com/api/';
+  static String productionBaseUrl='https://shopperxm.qdegrees.com/api/';
+  //static String productionBaseUrl='https://retailanalytics.qdegrees.com/api/';
+
   static String glueplBaseUrl='https://qdegrees.glueple.com:3001/rest_api/';
   static int apiSuccess=1;
   static int apiErrorCode=0;

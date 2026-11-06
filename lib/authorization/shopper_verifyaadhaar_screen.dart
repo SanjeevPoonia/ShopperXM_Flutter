@@ -21,7 +21,8 @@ class _ShopperVerifyAadhaarScreenState
 
   late final WebViewController _controller;
 
-  final String allowedOrigin = "https://retailanalytics.qdegrees.com";
+  final String allowedOrigin = "https://shopperxm.qdegrees.com";
+  //final String allowedOrigin = "https://retailanalytics.qdegrees.com";
 
   bool isLoading = true;
 

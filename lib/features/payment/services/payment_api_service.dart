@@ -13,11 +13,11 @@ class PaymentApiService {
 
   final http.Client _client;
 
-  static const String paymentListWebservice =
-      'https://retailanalytics.qdegrees.com/api/get/auditor/payment-list';
+  //static const String paymentListWebservice = 'https://retailanalytics.qdegrees.com/api/get/auditor/payment-list';
+  static const String paymentListWebservice = 'https://shopperxm.qdegrees.com/api/get/auditor/payment-list';
 
-  static const String transListApi =
-      'https://retailanalytics.qdegrees.com/api/get-trans-list-freelancer';
+//  static const String transListApi = 'https://retailanalytics.qdegrees.com/api/get-trans-list-freelancer';
+  static const String transListApi = 'https://shopperxm.qdegrees.com/api/get-trans-list-freelancer';
 
   static const Duration _requestTimeout = Duration(seconds: 30);
 

@@ -255,7 +255,8 @@ class LoginState extends State<LoginScreen> {
                                         ),
                                         recognizer: TapGestureRecognizer()
                                           ..onTap = () {
-                                            launchUrl(Uri.parse("https://retailanalytics.qdegrees.com/terms_conditions.html"));
+                                            launchUrl(Uri.parse("https://shopperxm.qdegrees.com/terms_conditions.html"));
+                                            //launchUrl(Uri.parse("https://retailanalytics.qdegrees.com/terms_conditions.html"));
 
                                           },
                                       ),
@@ -271,7 +272,8 @@ class LoginState extends State<LoginScreen> {
                                         ),
                                         recognizer: TapGestureRecognizer()
                                           ..onTap = () {
-                                            launchUrl(Uri.parse("https://retailanalytics.qdegrees.com/privacy_policy.html"));
+                                            launchUrl(Uri.parse("https://shopperxm.qdegrees.com/privacy_policy.html"));
+                                            //launchUrl(Uri.parse("https://retailanalytics.qdegrees.com/privacy_policy.html"));
                                           },
                                       ),
                                     ],

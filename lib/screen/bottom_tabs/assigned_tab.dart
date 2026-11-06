@@ -412,11 +412,15 @@ class MenuState extends State<AssignedTab> {
 
                                   if((searchList[pos]["tag_location"]==0 && searchList[pos]["selfie_required"]==0 && searchList[pos]["is_store_image"]==0) || searchList[pos]["is_tagged_all"]==2)
                                   {
-                                    Navigator.push(context, MaterialPageRoute(builder: (context)=>AuditFormScreen(searchList[pos]["beat_plan_id"].toString(),searchList[pos]["store_id"].toString(),"assigned")));
+                                    Navigator.push(context, MaterialPageRoute(builder: (context)=>AuditFormScreen(searchList[pos]["beat_plan_id"].toString(),searchList[pos]["store_id"].toString(),"assigned"))).then((value) {
+                                      getAssignedAuditList(context);
+                                    });
                                   }
                                   else
                                   {
-                                    Navigator.push(context, MaterialPageRoute(builder: (context)=>AuditIntroScreen(searchList[pos]["store_id"].toString(),searchList[pos]["store_name"])));
+                                    Navigator.push(context, MaterialPageRoute(builder: (context)=>AuditIntroScreen(searchList[pos]["store_id"].toString(),searchList[pos]["store_name"]))).then((value) {
+                                      getAssignedAuditList(context);
+                                    });
                                   }
                                 },
                                 child: Container(
@@ -918,6 +922,8 @@ class MenuState extends State<AssignedTab> {
     setState(() {
       isLoading=false;
     });
+
+    assignedList.clear();
 
     assignedList=responseJSON["data"];
     setState(() {

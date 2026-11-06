@@ -59,11 +59,10 @@ class MenuState extends State<FillAuditScreen> {
   List<dynamic> questionList =[];
   List<dynamic> artifactList=[];
   List<String> imagePathList = [];
-  List<int> radioSelectionList = [];
+  List<dynamic> radioSelectionList = [];
   List<String> startTimeList = [];
   List<String> endTimeList = [];
   List<TextEditingController> remarkList = [];
-
   List<dynamic> parentList = [
 
   ];
@@ -330,7 +329,7 @@ class MenuState extends State<FillAuditScreen> {
                                         )),
                                   ),
                                   SizedBox(height: 7),
-                                  Container(
+                                 /* Container(
                                     padding:
                                         EdgeInsets.symmetric(horizontal: 10),
                                     height: 53,
@@ -342,7 +341,6 @@ class MenuState extends State<FillAuditScreen> {
                                         borderRadius: BorderRadius.circular(4)),
                                     child: ListView.builder(
                                       scrollDirection: Axis.horizontal,
-
                                         itemCount: currentQuestionList[pos]["options"].length,
                                         itemBuilder: (BuildContext context,int pos22)
                                     {
@@ -380,14 +378,18 @@ class MenuState extends State<FillAuditScreen> {
                                                       : Color(0xFF708096),
                                                 )),
                                           ),
-
                                           SizedBox(width: 25)
                                         ],
                                       );
+
                                     }
 
 
                                     )
+                                  ),*/
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                    child: buildAnswerWidget(pos),
                                   ),
                                   SizedBox(height: 15),
                                   Padding(
@@ -1838,4 +1840,381 @@ class MenuState extends State<FillAuditScreen> {
       uploadImage(questionID, pos);
     }
   }
+
+  int getQuestionType(int pos) {
+    return int.tryParse(
+      currentQuestionList[pos]["question_type"]?.toString() ?? "1",
+    ) ??
+        1;
+  }
+
+  int getSelectedAnswer(int pos) {
+    return int.tryParse(radioSelectionList[pos].toString()) ?? 9999;
+  }
+
+  void updateAnswer(int pos, dynamic answerId) {
+    setState(() {
+      radioSelectionList[pos] = answerId;
+    });
+  }
+
+  Widget buildAnswerWidget(int pos) {
+    final int questionType = getQuestionType(pos);
+
+    switch (questionType) {
+      case 1:
+      case 2:
+      case 3:
+        return buildRadioOptions(pos);
+
+      case 7:
+        return buildRadioOptions(
+          pos,
+          customOptions: [
+            {
+              "option_id": 1757,
+              "option": "Less Appropriate",
+            },
+            {
+              "option_id": 1758,
+              "option": "More Appropriate",
+            },
+            {
+              "option_id": 1759,
+              "option": "Appropriate",
+            },
+          ],
+        );
+
+      case 4:
+        return buildNumberOptions(
+          pos,
+          start: 0,
+          end: 10,
+          isNps: true,
+        );
+
+      case 5:
+        return buildStarRating(pos, 5);
+
+      case 6:
+        return buildNumberOptions(
+          pos,
+          start: 1,
+          end: 10,
+        );
+
+      case 14:
+        return buildStarRating(pos, 4);
+
+      case 15:
+        return buildStarRating(pos, 3);
+
+      default:
+      // Retain API-driven options for any other question type.
+        return buildRadioOptions(pos);
+    }
+  }
+
+// ---------------------------------------------------------
+// RADIO OPTIONS: Question Types 1, 2, 3 and 7
+// ---------------------------------------------------------
+
+  Widget buildRadioOptions(
+      int pos, {
+        List<Map<String, dynamic>>? customOptions,
+      }) {
+    final List<dynamic> options = customOptions ??
+        (currentQuestionList[pos]["options"] is List
+            ? currentQuestionList[pos]["options"]
+            : []);
+
+    if (options.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Text("No options available"),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 12,
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF7C00).withOpacity(0.20),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Wrap(
+        spacing: 18,
+        runSpacing: 12,
+        children: options.map<Widget>((option) {
+          final int optionId =
+              int.tryParse(option["option_id"].toString()) ?? -1;
+
+          final String optionName =
+              option["option"]?.toString() ?? "";
+
+          final bool isSelected =
+              getSelectedAnswer(pos) == optionId;
+
+          return InkWell(
+            onTap: () {
+              updateAnswer(pos, optionId);
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isSelected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: isSelected
+                      ? AppTheme.orangeColor
+                      : const Color(0xFF708096),
+                  size: 21,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  optionName,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: isSelected
+                        ? AppTheme.orangeColor
+                        : const Color(0xFF708096),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+// ---------------------------------------------------------
+// NPS AND 1-10 RATING SELECTION
+// ---------------------------------------------------------
+
+  Widget buildNumberOptions(
+      int pos, {
+        required int start,
+        required int end,
+        bool isNps = false,
+      }) {
+    final int selectedValue = getSelectedAnswer(pos);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 12,
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF7C00).withOpacity(0.20),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isNps)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: Text(
+                "Select your rating (0 - 10)",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF708096),
+                ),
+              ),
+            ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(end - start + 1, (index) {
+                final int value = start + index;
+                final bool isSelected = selectedValue == value;
+
+                Color normalColor = const Color(0xFF708096);
+
+                if (isNps) {
+                  if (value <= 6) {
+                    normalColor = Colors.red;
+                  } else if (value <= 8) {
+                    normalColor = Colors.amber.shade800;
+                  } else {
+                    normalColor = Colors.green;
+                  }
+                } else {
+                  if (value <= 6) {
+                    normalColor = Colors.red;
+                  } else if (value <= 8) {
+                    normalColor = Colors.amber.shade800;
+                  } else {
+                    normalColor = Colors.green;
+                  }
+                }
+
+                return GestureDetector(
+                  onTap: () {
+                    updateAnswer(pos, value);
+                  },
+                  child: Container(
+                    width: 34,
+                    height: 38,
+                    margin: const EdgeInsets.only(right: 5),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? normalColor
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: normalColor,
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      value.toString(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : normalColor,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// ---------------------------------------------------------
+// STAR RATING: Question Types 5, 14 and 15
+// ---------------------------------------------------------
+
+
+  Widget buildStarRating(int pos, int totalStars) {
+    final dynamic answer = radioSelectionList[pos];
+
+    final bool isNA = answer.toString() == '-1';
+    final bool isUnselected = answer.toString() == '9999';
+
+    final double selectedRating = isNA || isUnselected
+        ? 0.0
+        : (answer is num
+        ? answer.toDouble()
+        : double.tryParse(answer.toString()) ?? 0.0);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 12,
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF7C00).withOpacity(0.20),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ...List.generate(totalStars, (index) {
+                final double starNumber = index + 1.0;
+
+                IconData icon;
+
+                if (selectedRating >= starNumber) {
+                  icon = Icons.star;
+                } else if (selectedRating >= starNumber - 0.5) {
+                  icon = Icons.star_half;
+                } else {
+                  icon = Icons.star_border;
+                }
+
+                return SizedBox(
+                  width: 42,
+                  height: 42,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return GestureDetector(
+                        onTapDown: isNA
+                            ? null
+                            : (details) {
+                          final double value =
+                          details.localPosition.dx <
+                              constraints.maxWidth / 2
+                              ? starNumber - 0.5
+                              : starNumber;
+
+                          updateAnswer(pos, value);
+                        },
+                        child: Icon(
+                          icon,
+                          size: 34,
+                          color: isNA
+                              ? Colors.grey
+                              : Colors.amber.shade700,
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }),
+              const SizedBox(width: 8),
+              Text(
+                isNA
+                    ? "NA"
+                    : isUnselected
+                    ? ""
+                    : selectedRating.toString(),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Checkbox(
+                value: isNA,
+                activeColor: AppTheme.orangeColor,
+                onChanged: (value) {
+                  if (value == true) {
+                    updateAnswer(pos, -1);
+                  } else {
+                    updateAnswer(pos, 0);
+                  }
+                },
+              ),
+              const Text(
+                "NA",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF708096),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+
 }

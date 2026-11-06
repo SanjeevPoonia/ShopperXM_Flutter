@@ -309,7 +309,8 @@ class _ShopperSignupKycScreenState
         "verify_phone": false,
         "verify_email": false,
         "signup_flow": true,
-        "redirect_url": "https://retailanalytics.qdegrees.com",
+        "redirect_url": "https://shopperxm.qdegrees.com",
+        //"redirect_url": "https://retailanalytics.qdegrees.com",
         "state": "test",
       };
 
