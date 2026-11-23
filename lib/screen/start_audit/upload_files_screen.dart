@@ -472,9 +472,8 @@ class MenuState extends State<UploadFilesScreen> {
 
   Future<void> uploadAllArtifactsInBackground() async {
     // ---------------------------------------------------------
-    // 1. Check notification permission
+    // 1. Check notification permission (Android & iOS)
     // ---------------------------------------------------------
-
     final FlutterLocalNotificationsPlugin notifications =
     FlutterLocalNotificationsPlugin();
 
@@ -482,7 +481,11 @@ class MenuState extends State<UploadFilesScreen> {
     AndroidInitializationSettings('app_ic');
 
     const DarwinInitializationSettings iosSettings =
-    DarwinInitializationSettings();
+    DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
 
     const InitializationSettings initializationSettings =
     InitializationSettings(
@@ -492,33 +495,43 @@ class MenuState extends State<UploadFilesScreen> {
 
     await notifications.initialize(initializationSettings);
 
-    final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
-    notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    bool isPermissionGranted = false;
 
-    final bool? permissionGranted =
-    await androidPlugin?.areNotificationsEnabled();
+    if (Platform.isAndroid) {
+      final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+      notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
 
-    print("Notification permission status: $permissionGranted");
+      bool? granted = await androidPlugin?.areNotificationsEnabled();
 
-    if (permissionGranted != true) {
-      final bool? requestResult =
-      await androidPlugin?.requestNotificationsPermission();
-
-      print("Notification permission request result: $requestResult");
-
-      if (requestResult != true) {
-        Toast.show(
-          "Notification permission is required for background upload.",
-          duration: Toast.lengthLong,
-          gravity: Toast.bottom,
-          backgroundColor: Colors.red,
-        );
-
-        return;
+      if (granted != true) {
+        granted = await androidPlugin?.requestNotificationsPermission();
       }
+
+      isPermissionGranted = granted ?? false;
+    } else if (Platform.isIOS) {
+      final IOSFlutterLocalNotificationsPlugin? iosPlugin =
+      notifications.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+
+      final bool? granted = await iosPlugin?.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      isPermissionGranted = granted ?? false;
     }
 
+    if (!isPermissionGranted) {
+      Toast.show(
+        "Notification permission is required for background upload.",
+        duration: Toast.lengthLong,
+        gravity: Toast.bottom,
+        backgroundColor: Colors.red,
+      );
+      return;
+    }
     // ---------------------------------------------------------
     // 2. Create artifact list
     // ---------------------------------------------------------

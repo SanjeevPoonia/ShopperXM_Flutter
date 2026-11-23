@@ -36,7 +36,7 @@
     <application
         android:label="ShopperXM"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher22">
+        android:icon="@mipmap/launcher_icon">
 
 
         <activity
