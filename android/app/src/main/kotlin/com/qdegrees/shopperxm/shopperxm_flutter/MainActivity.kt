@@ -3,18 +3,16 @@ package com.qdegrees.shopperxm.shopperxm_flutter
 import android.content.Intent
 import android.os.Build
 import android.util.Log
-
 import androidx.annotation.NonNull
-
 import com.qdegrees.shopperxm.shopperxm_flutter.recording.RecordingBridge
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
-
 import com.qdegrees.shopperxm.shopperxm_flutter.recording.VideoRecordingService
-import com.qdegrees.shopperxm.shopperxm_flutter.recording.AudioRecordingService
+import com.qdegrees.shopperxm.shopperxm_flutter.recording.AudioRecordingServiceUpdated
+import android.content.Context
 
 
 class MainActivity : FlutterActivity() {
@@ -30,9 +28,14 @@ class MainActivity : FlutterActivity() {
         private const val EVENT_CHANNEL =
             "retailiq/recording_events"
 
-        private const val AUDIO_CHANNEL =
+       /* private const val AUDIO_CHANNEL =
+            "com.qdegrees.shopperxm/audio_recording"*/
+
+        private val CHANNEL =
             "com.qdegrees.shopperxm/audio_recording"
     }
+
+
 
 
     // ============================================================
@@ -277,7 +280,7 @@ class MainActivity : FlutterActivity() {
         // Audio Recording MethodChannel
         // ========================================================
 
-        MethodChannel(
+        /*MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             AUDIO_CHANNEL
         ).setMethodCallHandler { call, result ->
@@ -505,7 +508,194 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
+        }*/
+
+        //=====================================================
+        // Audio Recording MethodChannel Updated
+        //=====================================================
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            CHANNEL
+        ).setMethodCallHandler { call, result ->
+
+            when (call.method) {
+
+                "startAudioRecording" -> {
+
+
+
+                    val recordingId =
+                        call.argument<String>("recordingId") ?: ""
+
+                    val beatplanId =
+                        call.argument<String>("beatplanId") ?: ""
+
+                    val storeId =
+                        call.argument<String>("storeId") ?: ""
+
+                    val storeName =
+                        call.argument<String>("storeName") ?: ""
+
+                    val auditDate =
+                        call.argument<String>("auditDate") ?: ""
+
+                    if (recordingId.isBlank() ||
+                        storeId.isBlank() ||
+                        beatplanId.isBlank()
+                    ) {
+                        result.error(
+                            "INVALID_ARGUMENTS",
+                            "Recording ID, Store ID and Beatplan ID are required.",
+                            null
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    Log.d(TAG, "Starting audio recording")
+                    Log.d(TAG, "Recording ID: $recordingId")
+                    Log.d(TAG, "Store ID: $storeId")
+
+                    val intent = Intent(
+                        this,
+                        AudioRecordingServiceUpdated::class.java
+                    ).apply {
+                        action =
+                            AudioRecordingServiceUpdated.ACTION_START
+
+                        putExtra("recordingId", recordingId)
+                        putExtra("beatplanId", beatplanId)
+                        putExtra("storeId", storeId)
+                        putExtra("storeName", storeName)
+                        putExtra("auditDate", auditDate)
+                    }
+
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(intent)
+                        } else {
+                            startService(intent)
+                        }
+
+                        result.success(true)
+
+                    } catch (e: Exception) {
+
+                        Log.e("Unable to start audio recording", e.toString())
+                        result.error(
+                            "START_FAILED",
+                            e.message,
+                            null
+                        )
+                    }
+                }
+
+                "stopAudioRecording" -> {
+
+                    try{
+                        val prefs = getSharedPreferences(
+                            AudioRecordingServiceUpdated.PREFS_NAME,
+                            Context.MODE_PRIVATE
+                        )
+
+                        // Get recording details before sending stop action
+                        val recordingId = prefs.getString("recordingId", null)
+                        val storeId = prefs.getString("storeId", null)
+                        val storeName = prefs.getString("storeName", null)
+                        val beatplanId = prefs.getString("beatplanId", null)
+                        val auditDate = prefs.getString("auditDate", null)
+                        val fileName = prefs.getString("fileName", null)
+                        val fileUri = prefs.getString("fileUri", null)
+                        val startedAt = prefs.getLong("startedAt", 0L)
+                        val intent = Intent(
+                            this,
+                            AudioRecordingServiceUpdated::class.java
+                        ).apply {
+                            action = AudioRecordingServiceUpdated.ACTION_STOP
+                        }
+
+                        startService(intent)
+                        // Return recording details to Flutter
+                        val response = mapOf(
+                            "success" to true,
+                            "isRecording" to false,
+                            "recordingId" to recordingId,
+                            "storeId" to storeId,
+                            "storeName" to storeName,
+                            "beatplanId" to beatplanId,
+                            "auditDate" to auditDate,
+                            "fileName" to fileName,
+                            "fileUri" to fileUri,
+                            "filePath" to fileUri,
+                            "startedAt" to startedAt
+                        )
+
+                        result.success(response)
+
+
+                    }catch (e: Exception){
+                        Log.e("Unable to Stop audio recording", e.toString())
+                        result.error(
+                            "STOP_FAILED",
+                            e.message,
+                            null
+                        )
+                    }
+
+                    /*val intent = Intent(
+                        this,
+                        AudioRecordingServiceUpdated::class.java
+                    ).apply {
+                        action =
+                            AudioRecordingServiceUpdated.ACTION_STOP
+                    }
+
+                    startService(intent)
+                    result.success(true)*/
+                }
+
+                "getAudioRecordingStatus" -> {
+
+                    val prefs = getSharedPreferences(
+                        AudioRecordingServiceUpdated.PREFS_NAME,
+                        Context.MODE_PRIVATE
+                    )
+
+                    val active = AudioRecordingServiceUpdated.isRecording
+
+                    result.success(
+                        mapOf(
+                            "isRecording" to active,
+                            "recordingId" to prefs.getString(
+                                "recordingId", null
+                            ),
+                            "storeId" to prefs.getString(
+                                "storeId", null
+                            ),
+                            "storeName" to prefs.getString(
+                                "storeName", null
+                            ),
+                            "beatplanId" to prefs.getString(
+                                "beatplanId", null
+                            ),
+                            "auditDate" to prefs.getString(
+                                "auditDate", null
+                            ),
+                            "fileName" to prefs.getString(
+                                "fileName", null
+                            ),
+                            "fileUri" to prefs.getString(
+                                "fileUri", null
+                            ),
+                            "startedAt" to prefs.getLong("startedAt", 0L),
+                        )
+                    )
+                }
+
+                else -> result.notImplemented()
+            }
         }
+
 
 
         // ========================================================

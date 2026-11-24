@@ -9,6 +9,7 @@ import 'package:shopperxm_flutter/screen/bottom_tabs/home_tab.dart';
 import 'package:shopperxm_flutter/screen/zoom_scaffold.dart' as MEN;
 import 'package:provider/provider.dart';
 import 'package:shopperxm_flutter/screen/zoom_scaffold.dart';
+import '../services/audio_recording_recovery.dart';
 import '../utils/app_modal.dart';
 import 'bottom_tabs/assigned_tab.dart';
 import 'bottom_tabs/feedback_tab.dart';
@@ -21,7 +22,7 @@ class LandingScreen extends StatefulWidget
   LandingState createState()=>LandingState();
 }
 
-class LandingState extends State<LandingScreen> with TickerProviderStateMixin
+class LandingState extends State<LandingScreen> with TickerProviderStateMixin,WidgetsBindingObserver
 {
   int selectedIndex = 0;
   MEN.MenuController? menuController;
@@ -504,9 +505,25 @@ class LandingState extends State<LandingScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AudioRecordingRecovery.checkAndRestore();
+    });
     loadData();
-
   }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state,) {
+    if (state == AppLifecycleState.resumed) {
+      AudioRecordingRecovery.checkAndRestore();
+    }
+  }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
 
   loadData()async{
     FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =

@@ -9,7 +9,7 @@ import 'package:lottie/lottie.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-//import 'package:shopperxm_flutter/screen/audits/record_audio_screen.dart';
+import 'package:shopperxm_flutter/recording/record_audio_screen_updated.dart';
 import 'package:shopperxm_flutter/screen/audits/record_video_screen.dart';
 import 'package:shopperxm_flutter/screen/start_audit/audit_form.dart';
 import 'package:shopperxm_flutter/utils/app_theme.dart';
@@ -22,7 +22,7 @@ import '../../network/loader.dart';
 import '../../recording/recording_screen.dart';
 import '../../utils/app_modal.dart';
 import '../start_audit/audit_intro_screen.dart';
-import 'package:shopperxm_flutter/recording/record_audio_screen.dart';
+
 
 
 class TaggedAuditsScreen extends StatefulWidget {
@@ -520,20 +520,27 @@ class MenuState extends State<TaggedAuditsScreen> {
                               SizedBox(height: 10),
 
 
-                              isAndroidDevice?Row(
+                              Row(
                                 children: [
                                   Expanded(
                                     flex: 1,
                                     child: InkWell(
                                       onTap: (){
-                                        /*Navigator.push(context, PageTransition(
-                                            type: PageTransitionType.bottomToTop,
-                                            child: RecordAudioScreen(
-                                                searchList[pos]['store_code']+"("+searchList[pos]["client_name"]+")" ?? '',
-                                                searchList[pos]['store_name'] ?? '',searchList[pos]['store_address'] ?? '',
-                                                searchList[pos]["store_id"].toString())));*/
 
                                         Navigator.push(
+                                            context,
+                                            PageTransition(
+                                                type: PageTransitionType.bottomToTop,
+                                                child: RecordAudioScreenUpdated(
+                                                  beatplanId: searchList[pos]['beat_plan_id']?.toString()??"",
+                                                  storeId: searchList[pos]['store_code'].toString(),
+                                                  storeName: searchList[pos]['store_name']?.toString()??"",
+                                                  storeAddress: searchList[pos]['store_address']?.toString()??'',
+                                                  auditDate: searchList[pos]["audit_date"]?.toString()??'',
+                                                )));
+
+
+                                        /*Navigator.push(
                                             context,
                                             PageTransition(
                                                 type: PageTransitionType.bottomToTop,
@@ -544,7 +551,7 @@ class MenuState extends State<TaggedAuditsScreen> {
                                                   storeAddress: searchList[pos]['store_address']?.toString()??'',
                                                   auditDate: searchList[pos]["audit_date"]?.toString()??'',
 
-                                                )));
+                                                )));*/
 
                                       },
                                       child: Container(
@@ -596,7 +603,7 @@ class MenuState extends State<TaggedAuditsScreen> {
                                       child: Container()
                                   )
                                 ],
-                              ):SizedBox(),
+                              ),
 
                               SizedBox(height: 20)
                             ],
@@ -927,7 +934,7 @@ class MenuState extends State<TaggedAuditsScreen> {
                               SizedBox(height: 10),
 
 
-                              isAndroidDevice?Row(
+                              Row(
                                 children: [
                                   Expanded(
                                     flex: 1,
@@ -946,9 +953,9 @@ class MenuState extends State<TaggedAuditsScreen> {
                                             context,
                                             PageTransition(
                                                 type: PageTransitionType.bottomToTop,
-                                                child: RecordAudioScreen(
-                                                    auditId: taggedList[pos]['beat_plan_id']?.toString()??"",
-                                                    storeCode: taggedList[pos]['store_code'].toString(),
+                                                child: RecordAudioScreenUpdated(
+                                                    beatplanId: taggedList[pos]['beat_plan_id']?.toString()??"",
+                                                    storeId: taggedList[pos]['store_code'].toString(),
                                                     storeName: taggedList[pos]['store_name']?.toString()??"",
                                                     storeAddress: taggedList[pos]['store_address']?.toString()??'',
                                                     auditDate: taggedList[pos]["audit_date"]?.toString()??'',
@@ -1005,7 +1012,7 @@ class MenuState extends State<TaggedAuditsScreen> {
                                     child: Container()
                                   )
                                 ],
-                              ):SizedBox(),
+                              ),
 
                               SizedBox(height: 20)
                             ],

@@ -60,11 +60,24 @@
 
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>ShopperXM uses location access in the background only when required for an active, assigned audit activity.</string>
+
+    <key>NSMicrophoneUsageDescription</key>
+    <string>ShopperXM uses the microphone to record audio during assigned store audit activities.</string>
+
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>
         <string>processing</string>
+        <string>audio</string>
     </array>
+
+    <key>UIFileSharingEnabled</key>
+    <true/>
+
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+
+
     <key>BGTaskSchedulerPermittedIdentifiers</key>
     <array>
         <string>com.qdegrees.shopperxm.app.uploadArtifactTask</string>

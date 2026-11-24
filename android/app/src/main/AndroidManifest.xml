@@ -19,6 +19,7 @@
 
     <!-- Android 14+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!-- Android 13+ notification permission -->
@@ -36,7 +37,7 @@
     <application
         android:label="ShopperXM"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/ic_launcher22">
 
 
         <activity
@@ -79,6 +80,10 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+        <service android:name="com.qdegrees.shopperxm.shopperxm_flutter.recording.AudioRecordingServiceUpdated"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="microphone"/>
 
     </application>
     <!-- Required to query activities that can process text, see:
