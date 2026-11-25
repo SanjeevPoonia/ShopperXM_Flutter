@@ -557,7 +557,7 @@ void callbackDispatcher() {
 }
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Workmanager().initialize(callbackDispatcher);
+  await Workmanager().initialize(callbackDispatcher);
   HttpOverrides.global = MyHttpOverrides();
   await SystemChrome.setPreferredOrientations(
     [DeviceOrientation.portraitUp],

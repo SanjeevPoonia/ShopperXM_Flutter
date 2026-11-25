@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:chewie/chewie.dart';
 import 'package:dio/dio.dart';
@@ -18,13 +17,14 @@ import 'package:toast/toast.dart';
 import 'package:shopperxm_flutter/screen/zoom_scaffold.dart' as MEN;
 import 'package:video_player/video_player.dart';
 import 'package:workmanager/workmanager.dart';
-
 import '../../network/api_dialog.dart';
 import '../../network/constants.dart';
 import '../../network/loader.dart';
 import '../../widgets/appbar_widget.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shopperxm_flutter/services/ios_artifact_upload_service.dart';
+
 
 class UploadFilesScreen extends StatefulWidget {
   final int isVideoRequired;
@@ -474,7 +474,7 @@ class MenuState extends State<UploadFilesScreen> {
     // ---------------------------------------------------------
     // 1. Check notification permission (Android & iOS)
     // ---------------------------------------------------------
-    final FlutterLocalNotificationsPlugin notifications =
+    /*final FlutterLocalNotificationsPlugin notifications =
     FlutterLocalNotificationsPlugin();
 
     const AndroidInitializationSettings androidSettings =
@@ -495,9 +495,20 @@ class MenuState extends State<UploadFilesScreen> {
 
     await notifications.initialize(initializationSettings);
 
-    bool isPermissionGranted = false;
+    bool isPermissionGranted = false;*/
 
     if (Platform.isAndroid) {
+      final FlutterLocalNotificationsPlugin notifications =
+      FlutterLocalNotificationsPlugin();
+
+      const AndroidInitializationSettings androidSettings =
+      AndroidInitializationSettings('app_ic');
+
+      const InitializationSettings initializationSettings =
+      InitializationSettings(android: androidSettings);
+
+      await notifications.initialize(initializationSettings);
+
       final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
       notifications.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
@@ -508,30 +519,18 @@ class MenuState extends State<UploadFilesScreen> {
         granted = await androidPlugin?.requestNotificationsPermission();
       }
 
-      isPermissionGranted = granted ?? false;
-    } else if (Platform.isIOS) {
-      final IOSFlutterLocalNotificationsPlugin? iosPlugin =
-      notifications.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>();
-
-      final bool? granted = await iosPlugin?.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-
-      isPermissionGranted = granted ?? false;
+      if (granted != true) {
+        Toast.show(
+          "Notification permission is required for background upload.",
+          duration: Toast.lengthLong,
+          gravity: Toast.bottom,
+          backgroundColor: Colors.red,
+        );
+        return;
+      }
     }
 
-    if (!isPermissionGranted) {
-      Toast.show(
-        "Notification permission is required for background upload.",
-        duration: Toast.lengthLong,
-        gravity: Toast.bottom,
-        backgroundColor: Colors.red,
-      );
-      return;
-    }
+
     // ---------------------------------------------------------
     // 2. Create artifact list
     // ---------------------------------------------------------
@@ -616,7 +615,7 @@ class MenuState extends State<UploadFilesScreen> {
     // 4. Register ONE WorkManager task
     // ---------------------------------------------------------
 
-    final String uniqueId =
+    /*final String uniqueId =
         "artifact_upload_${DateTime.now().millisecondsSinceEpoch}";
     await Workmanager().registerOneOffTask(
       uniqueId,
@@ -637,13 +636,72 @@ class MenuState extends State<UploadFilesScreen> {
       existingWorkPolicy: ExistingWorkPolicy.append,
     );
 
-    print("Background artifact upload task registered.");
+    print("Background artifact upload task registered.");*/
+
+    try {
+      if (Platform.isIOS) {
+        final int count = await IOSArtifactUploadService.startUpload(
+          artifacts: artifacts,
+          beatID: widget.beatPlanID,
+          storeID: widget.storeID,
+          userID: AppModel.userID.toString(),
+          token: AppModel.token.toString(),
+        );
+
+        print("iOS background upload started for $count files.");
+      } else {
+        // Keep the existing Android Workmanager implementation unchanged.
+
+        final String uniqueId =
+            "artifact_upload_${DateTime.now().millisecondsSinceEpoch}";
+
+        await Workmanager().registerOneOffTask(
+          uniqueId,
+          "uploadArtifactsTask",
+          inputData: {
+            "artifacts": jsonEncode(artifacts),
+            "beat_id": widget.beatPlanID,
+            "store_id": widget.storeID,
+            "user_id": AppModel.userID,
+            "token": AppModel.token,
+            "device_id": 'flutter_app',
+          },
+          constraints: Constraints(
+            networkType: NetworkType.connected,
+            requiresBatteryNotLow: true,
+          ),
+          backoffPolicy: BackoffPolicy.exponential,
+          existingWorkPolicy: ExistingWorkPolicy.append,
+        );
+
+        print("Android Workmanager upload task registered.");
+      }
+    } catch (e) {
+      print("Background upload start error: $e");
+
+      Toast.show(
+        "Unable to start background upload: $e",
+        duration: Toast.lengthLong,
+        gravity: Toast.bottom,
+        backgroundColor: Colors.red,
+      );
+
+      return;
+    }
 
     // ---------------------------------------------------------
     // 5. Close UploadFilesScreen
     // ---------------------------------------------------------
 
     if (!mounted) return;
+
+    Toast.show(
+      "${artifacts.length} artifact(s) added to background upload.",
+      duration: Toast.lengthLong,
+      gravity: Toast.bottom,
+      backgroundColor: Colors.blue,
+    );
+
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
