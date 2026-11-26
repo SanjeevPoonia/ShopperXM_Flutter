@@ -2,6 +2,7 @@ import UIKit
 import Flutter
 import GoogleMaps
 import workmanager
+import UserNotifications
 @main
 @objc class AppDelegate: FlutterAppDelegate {
     private let audioChannel =
@@ -111,6 +112,9 @@ import workmanager
     }
     GeneratedPluginRegistrant.register(with: self)
 
+    // Set notification delegate for foreground notifications
+    UNUserNotificationCenter.current().delegate = self
+
 
     let uploadController = FlutterMethodChannel(
         name: "com.qdegrees.shopperxm/ios_background_upload",
@@ -162,5 +166,16 @@ import workmanager
     WorkmanagerPlugin.registerTask(withIdentifier: "com.qdegrees.shopperxm.app.uploadArtifactTask")
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  // MARK: - Foreground Notification Presentation
+
+  override func userNotificationCenter(
+      _ center: UNUserNotificationCenter,
+      willPresent notification: UNNotification,
+      withCompletionHandler completionHandler:
+          @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+      completionHandler([.banner, .sound, .list])
   }
 }

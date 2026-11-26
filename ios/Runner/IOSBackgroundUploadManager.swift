@@ -1,7 +1,11 @@
 
 import Foundation
+import UserNotifications
 
-final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSessionTaskDelegate,URLSessionDataDelegate {
+final class IOSBackgroundUploadManager: NSObject,
+    URLSessionDelegate,
+    URLSessionTaskDelegate,
+    URLSessionDataDelegate {
 
     static let shared = IOSBackgroundUploadManager()
 
@@ -16,6 +20,7 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
         let configuration = URLSessionConfiguration.background(
             withIdentifier: sessionIdentifier
         )
+
         configuration.isDiscretionary = false
         configuration.sessionSendsLaunchEvents = true
         configuration.httpMaximumConnectionsPerHost = 2
@@ -32,7 +37,8 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
 
     private var jobs: [String: [String: Any]] {
         get {
-            defaults.dictionary(forKey: jobsKey) as? [String: [String: Any]] ?? [:]
+            defaults.dictionary(forKey: jobsKey)
+                as? [String: [String: Any]] ?? [:]
         }
         set {
             defaults.set(newValue, forKey: jobsKey)
@@ -44,12 +50,13 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
         _ = backgroundSession
     }
 
-    // MARK: - Public methods
+    // MARK: - Public Methods
 
     func startUpload(
         arguments: [String: Any],
         completion: @escaping (Result<Int, Error>) -> Void
     ) {
+
         guard
             let artifacts = arguments["artifacts"] as? [[String: Any]],
             let presignedURL = arguments["presignedApiUrl"] as? String,
@@ -67,21 +74,26 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
             return
         }
 
-        guard URL(string: presignedURL) != nil,
-              URL(string: saveURL) != nil else {
+        guard
+            URL(string: presignedURL) != nil,
+            URL(string: saveURL) != nil
+        else {
             completion(.failure(uploadError("Invalid API URL.")))
             return
         }
 
         guard !token.isEmpty, !userID.isEmpty, !storeID.isEmpty else {
-            completion(.failure(uploadError("Missing user, store or token.")))
+            completion(
+                .failure(uploadError("Missing user, store or token."))
+            )
             return
         }
 
         var currentJobs = jobs
         var createdIDs: [String] = []
 
-        for artifact in artifacts {
+        for (index, artifact) in artifacts.enumerated() {
+
             guard
                 let filePath = artifact["file_path"] as? String,
                 let fileName = artifact["file_name"] as? String,
@@ -93,9 +105,12 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
 
             let fileURL = URL(fileURLWithPath: filePath)
 
-            guard let fileSize = try? fileURL.resourceValues(
-                forKeys: [.fileSizeKey]
-            ).fileSize, fileSize > 0 else {
+            guard
+                let fileSize = try? fileURL.resourceValues(
+                    forKeys: [.fileSizeKey]
+                ).fileSize,
+                fileSize > 0
+            else {
                 continue
             }
 
@@ -103,8 +118,9 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
             let mimeType = contentType(for: fileName)
 
             let localDate = (
-                (try? FileManager.default.attributesOfItem(atPath: filePath)[.modificationDate])
-                as? Date ?? Date()
+                (try? FileManager.default.attributesOfItem(
+                    atPath: filePath
+                )[.modificationDate]) as? Date ?? Date()
             ).description
 
             let job: [String: Any] = [
@@ -121,7 +137,12 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
                 "store_id": storeID,
                 "beatplan_id": arguments["beat_id"] as? String ?? "",
                 "device_id": arguments["device_id"] as? String ?? "flutter_app",
-                "status": "waitingForPresign"
+                "status": "waitingForPresign",
+
+                // Notification details
+                "queue_index": index + 1,
+                "queue_total": artifacts.count,
+                "last_notified_progress": 0
             ]
 
             currentJobs[id] = job
@@ -131,19 +152,33 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
         jobs = currentJobs
 
         guard !createdIDs.isEmpty else {
-            completion(.failure(uploadError("No valid files found in upload queue.")))
+            completion(
+                .failure(
+                    uploadError("No valid files found in upload queue.")
+                )
+            )
             return
         }
 
-        // The background tasks continue after this method returns.
+        // Request permission. Uploads continue even if permission is denied.
+        requestNotificationPermission()
+
         for id in createdIDs {
+            showUploadNotification(
+                id: id,
+                title: "ShopperXM - Upload Started",
+                message: "Preparing artifact \(queueDescription(for: id))"
+            )
+
             requestPresignedURL(for: id)
         }
 
         completion(.success(createdIDs.count))
     }
 
-    func setBackgroundCompletionHandler(_ handler: @escaping () -> Void) {
+    func setBackgroundCompletionHandler(
+        _ handler: @escaping () -> Void
+    ) {
         backgroundCompletionHandler = handler
         _ = backgroundSession
     }
@@ -160,8 +195,8 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
         setBackgroundCompletionHandler(completionHandler)
     }
 
-    // Call on app launch to retry jobs interrupted before a background
-    // URLSession task was created (for example, during the presign request).
+    // Call on app launch to retry jobs interrupted before
+    // their background URLSession task was created.
     func resumePendingJobs() {
         for (id, job) in jobs {
             if job["status"] as? String == "waitingForPresign" {
@@ -173,20 +208,28 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
     // MARK: - Presigned URL
 
     private func requestPresignedURL(for id: String) {
-        guard var job = jobs[id],
-              let endpoint = job["presigned_api_url"] as? String,
-              let fileName = job["file_name"] as? String,
-              let mimeType = job["content_type"] as? String,
-              let fileType = job["file_type"] as? String else {
+
+        guard
+            var job = jobs[id],
+            let endpoint = job["presigned_api_url"] as? String,
+            let fileName = job["file_name"] as? String,
+            let mimeType = job["content_type"] as? String,
+            let fileType = job["file_type"] as? String
+        else {
             return
         }
 
         let folder: String
+
         switch fileType {
-        case "1": folder = "audio"
-        case "2": folder = "video"
-        case "3": folder = "img"
-        default: folder = "store_img"
+        case "1":
+            folder = "audio"
+        case "2":
+            folder = "video"
+        case "3":
+            folder = "img"
+        default:
+            folder = "store_img"
         }
 
         guard let url = URL(string: endpoint) else {
@@ -196,8 +239,14 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(
+            "application/json",
+            forHTTPHeaderField: "Content-Type"
+        )
+        request.setValue(
+            "application/json",
+            forHTTPHeaderField: "Accept"
+        )
 
         let body: [String: String] = [
             "file_name": fileName,
@@ -206,7 +255,9 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
         ]
 
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request.httpBody = try JSONSerialization.data(
+                withJSONObject: body
+            )
         } catch {
             failJob(id, message: error.localizedDescription)
             return
@@ -215,11 +266,17 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
         job["status"] = "requestingPresign"
         jobs[id] = job
 
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        URLSession.shared.dataTask(
+            with: request
+        ) { [weak self] data, response, error in
+
             guard let self = self else { return }
 
             if let error = error {
-                self.failJob(id, message: error.localizedDescription)
+                self.failJob(
+                    id,
+                    message: error.localizedDescription
+                )
                 return
             }
 
@@ -228,21 +285,32 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
                 (200...299).contains(httpResponse.statusCode),
                 let data = data
             else {
-                self.failJob(id, message: "Presigned API returned an invalid response.")
+                self.failJob(
+                    id,
+                    message: "Presigned API returned an invalid response."
+                )
                 return
             }
 
             do {
-                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                let json = try JSONSerialization.jsonObject(
+                    with: data
+                ) as? [String: Any]
+
                 guard
                     let json = json,
                     (json["status"] as? Bool) == true,
                     let dataObject = json["data"] as? [String: Any],
-                    let uploadURLString = dataObject["upload_url"] as? String,
-                    let fileURL = dataObject["file_url"] as? String,
+                    let uploadURLString =
+                        dataObject["upload_url"] as? String,
+                    let fileURL =
+                        dataObject["file_url"] as? String,
                     let uploadURL = URL(string: uploadURLString)
                 else {
-                    self.failJob(id, message: "Invalid presigned URL response.")
+                    self.failJob(
+                        id,
+                        message: "Invalid presigned URL response."
+                    )
                     return
                 }
 
@@ -251,22 +319,30 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
                     uploadURL: uploadURL,
                     fileURL: fileURL
                 )
+
             } catch {
-                self.failJob(id, message: error.localizedDescription)
+                self.failJob(
+                    id,
+                    message: error.localizedDescription
+                )
             }
+
         }.resume()
     }
 
-    // MARK: - S3 background upload
+    // MARK: - S3 Background Upload
 
     private func startS3Upload(
         id: String,
         uploadURL: URL,
         fileURL: String
     ) {
-        guard var job = jobs[id],
-              let filePath = job["file_path"] as? String,
-              let mimeType = job["content_type"] as? String else {
+
+        guard
+            var job = jobs[id],
+            let filePath = job["file_path"] as? String,
+            let mimeType = job["content_type"] as? String
+        else {
             return
         }
 
@@ -279,7 +355,10 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
 
         var request = URLRequest(url: uploadURL)
         request.httpMethod = "PUT"
-        request.setValue(mimeType, forHTTPHeaderField: "Content-Type")
+        request.setValue(
+            mimeType,
+            forHTTPHeaderField: "Content-Type"
+        )
 
         // Do not add the app Authorization token to this S3 request.
 
@@ -291,19 +370,24 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
         job["file_url"] = fileURL
         job["status"] = "uploadingToS3"
         job["task_id"] = task.taskIdentifier
+        job["last_notified_progress"] = 0
+
         jobs[id] = job
 
         task.taskDescription = "s3|\(id)"
         task.resume()
     }
 
-    // MARK: - Save metadata
+    // MARK: - Save Metadata
 
     private func saveMetadata(for id: String) {
-        guard var job = jobs[id],
-              let saveURL = job["save_api_url"] as? String,
-              let fileURL = job["file_url"] as? String,
-              let token = job["token"] as? String else {
+
+        guard
+            var job = jobs[id],
+            let saveURL = job["save_api_url"] as? String,
+            let fileURL = job["file_url"] as? String,
+            let token = job["token"] as? String
+        else {
             return
         }
 
@@ -326,7 +410,9 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
 
         for (key, value) in fields {
             body.appendUTF8("--\(boundary)\r\n")
-            body.appendUTF8("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n")
+            body.appendUTF8(
+                "Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n"
+            )
             body.appendUTF8("\(value)\r\n")
         }
 
@@ -346,8 +432,14 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
                 "multipart/form-data; boundary=\(boundary)",
                 forHTTPHeaderField: "Content-Type"
             )
-            request.setValue(token, forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue(
+                token,
+                forHTTPHeaderField: "Authorization"
+            )
+            request.setValue(
+                "application/json",
+                forHTTPHeaderField: "Accept"
+            )
 
             let task = backgroundSession.uploadTask(
                 with: request,
@@ -357,42 +449,128 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
             job["status"] = "savingMetadata"
             job["metadata_body_path"] = bodyURL.path
             job["task_id"] = task.taskIdentifier
+
             jobs[id] = job
 
             task.taskDescription = "meta|\(id)"
             task.resume()
+
         } catch {
             failJob(id, message: error.localizedDescription)
         }
     }
 
-    // MARK: - URLSession delegate
+    // MARK: - URLSession Delegate - Upload Percentage
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didSendBodyData bytesSent: Int64,
+        totalBytesSent: Int64,
+        totalBytesExpectedToSend: Int64
+    ) {
+
+        guard
+            let description = task.taskDescription,
+            description.hasPrefix("s3|"),
+            totalBytesExpectedToSend > 0
+        else {
+            return
+        }
+
+        let parts = description.split(
+            separator: "|",
+            maxSplits: 1
+        )
+
+        guard parts.count == 2 else {
+            return
+        }
+
+        let id = String(parts[1])
+
+        let percentage = min(
+            100,
+            Int(
+                (Double(totalBytesSent) /
+                 Double(totalBytesExpectedToSend)) * 100
+            )
+        )
+
+        guard var job = jobs[id] else {
+            return
+        }
+
+        let lastPercentage =
+            job["last_notified_progress"] as? Int ?? 0
+
+        // Update notifications at 10% milestones.
+        let milestone = (percentage / 10) * 10
+
+        guard
+            milestone >= 10,
+            milestone > lastPercentage
+        else {
+            return
+        }
+
+        job["last_notified_progress"] = milestone
+        job["upload_percentage"] = percentage
+
+        jobs[id] = job
+
+        print(
+            "Artifact upload progress: \(id) = \(percentage)%"
+        )
+
+        updateUploadNotification(
+            id: id,
+            percentage: percentage
+        )
+    }
+
+    // MARK: - URLSession Delegate - Task Completion
 
     func urlSession(
         _ session: URLSession,
         task: URLSessionTask,
         didCompleteWithError error: Error?
     ) {
-        guard let description = task.taskDescription else { return }
 
-        let parts = description.split(separator: "|", maxSplits: 1)
-        guard parts.count == 2 else { return }
+        guard let description = task.taskDescription else {
+            return
+        }
+
+        let parts = description.split(
+            separator: "|",
+            maxSplits: 1
+        )
+
+        guard parts.count == 2 else {
+            return
+        }
 
         let type = String(parts[0])
         let id = String(parts[1])
 
         if let error = error {
-            failJob(id, message: error.localizedDescription)
+            failJob(
+                id,
+                message: error.localizedDescription
+            )
             return
         }
 
-        let statusCode = (task.response as? HTTPURLResponse)?.statusCode ?? 0
+        let statusCode =
+            (task.response as? HTTPURLResponse)?.statusCode ?? 0
 
         guard (200...299).contains(statusCode) else {
-            failJob(id, message: "\(type) request failed. HTTP \(statusCode).")
+            failJob(
+                id,
+                message: "\(type) request failed. HTTP \(statusCode)."
+            )
             return
         }
-
 
         if type == "s3" {
 
@@ -402,7 +580,6 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
 
         } else if type == "meta" {
 
-            // Read metadata API response.
             let responseData = responseDataByTask.removeValue(
                 forKey: task.taskIdentifier
             ) ?? Data()
@@ -419,7 +596,9 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
                 if let number = status as? NSNumber {
                     isSuccess = number.intValue == 1
                 } else if let string = status as? String {
-                    isSuccess = string == "1" || string.lowercased() == "true"
+                    isSuccess =
+                        string == "1" ||
+                        string.lowercased() == "true"
                 } else {
                     isSuccess = false
                 }
@@ -432,7 +611,6 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
                     return
                 }
 
-                // Metadata API successful.
                 finishJob(id)
 
             } catch {
@@ -442,90 +620,266 @@ final class IOSBackgroundUploadManager: NSObject, URLSessionDelegate, URLSession
                 )
             }
         }
-
     }
+
+    // MARK: - URLSession Delegate - Response Data
 
     func urlSession(
         _ session: URLSession,
         dataTask: URLSessionDataTask,
         didReceive data: Data
     ) {
+
         let taskID = dataTask.taskIdentifier
 
         responseDataByTask[taskID, default: Data()].append(data)
     }
 
-    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+    // MARK: - Background Session Completion
+
+    func urlSessionDidFinishEvents(
+        forBackgroundURLSession session: URLSession
+    ) {
+
         DispatchQueue.main.async {
             self.backgroundCompletionHandler?()
             self.backgroundCompletionHandler = nil
         }
     }
 
-    // MARK: - Job state
+    // MARK: - Job State
 
     private func finishJob(_ id: String) {
-        guard let job = jobs[id] else { return }
+
+        guard let job = jobs[id] else {
+            return
+        }
+
+        let artifactIndex =
+            job["queue_index"] as? Int ?? 1
+
+        let totalArtifacts =
+            job["queue_total"] as? Int ?? 1
+
+        showUploadNotification(
+            id: id,
+            title: "ShopperXM - Upload Completed",
+            message: "Artifact \(artifactIndex) of \(totalArtifacts) uploaded successfully."
+        )
 
         if let path = job["metadata_body_path"] as? String {
-            try? FileManager.default.removeItem(atPath: path)
+            try? FileManager.default.removeItem(
+                atPath: path
+            )
         }
 
         var currentJobs = jobs
         currentJobs.removeValue(forKey: id)
         jobs = currentJobs
 
-        print("Artifact upload and metadata save completed: \(id)")
+        print(
+            "Artifact upload and metadata save completed: \(id)"
+        )
     }
 
-    private func failJob(_ id: String, message: String) {
-        guard var job = jobs[id] else { return }
+    private func failJob(
+        _ id: String,
+        message: String
+    ) {
+
+        guard var job = jobs[id] else {
+            return
+        }
+
+        let artifactIndex =
+            job["queue_index"] as? Int ?? 1
+
+        let totalArtifacts =
+            job["queue_total"] as? Int ?? 1
 
         job["status"] = "failed"
         job["error"] = message
+
         jobs[id] = job
 
-        print("Artifact upload failed [\(id)]: \(message)")
+        showUploadNotification(
+            id: id,
+            title: "ShopperXM - Upload Failed",
+            message: "Artifact \(artifactIndex) of \(totalArtifacts) failed: \(message)"
+        )
+
+        print(
+            "Artifact upload failed [\(id)]: \(message)"
+        )
+    }
+
+    // MARK: - Upload Notifications
+
+    private func requestNotificationPermission() {
+
+        UNUserNotificationCenter.current()
+            .requestAuthorization(
+                options: [.alert, .sound, .badge]
+            ) { granted, error in
+
+                if let error = error {
+                    print(
+                        "Notification permission error: \(error)"
+                    )
+                    return
+                }
+
+                print(
+                    "Upload notification permission: \(granted)"
+                )
+            }
+    }
+
+    private func showUploadNotification(
+        id: String,
+        title: String,
+        message: String
+    ) {
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = message
+        content.sound = .default
+
+        let notificationID = "artifact-upload-\(id)"
+
+        let request = UNNotificationRequest(
+            identifier: notificationID,
+            content: content,
+            trigger: nil
+        )
+
+        let center = UNUserNotificationCenter.current()
+
+        // Replace the previous delivered notification
+        // for this artifact.
+        center.removePendingNotificationRequests(
+            withIdentifiers: [notificationID]
+        )
+
+        center.removeDeliveredNotifications(
+            withIdentifiers: [notificationID]
+        )
+
+        center.add(request) { error in
+            if let error = error {
+                print(
+                    "Upload notification error: \(error)"
+                )
+            }
+        }
+    }
+
+    private func updateUploadNotification(
+        id: String,
+        percentage: Int
+    ) {
+
+        guard let job = jobs[id] else {
+            return
+        }
+
+        let artifactIndex =
+            job["queue_index"] as? Int ?? 1
+
+        let totalArtifacts =
+            job["queue_total"] as? Int ?? 1
+
+        showUploadNotification(
+            id: id,
+            title: "ShopperXM - Uploading Artifacts",
+            message: "Artifact \(artifactIndex) of \(totalArtifacts) — Uploading: \(percentage)%"
+        )
+    }
+
+    private func queueDescription(for id: String) -> String {
+
+        guard let job = jobs[id] else {
+            return ""
+        }
+
+        let index = job["queue_index"] as? Int ?? 1
+        let total = job["queue_total"] as? Int ?? 1
+
+        return "\(index) of \(total)"
     }
 
     // MARK: - Helpers
 
     private func contentType(for fileName: String) -> String {
-        let ext = URL(fileURLWithPath: fileName).pathExtension.lowercased()
+
+        let ext = URL(fileURLWithPath: fileName)
+            .pathExtension
+            .lowercased()
 
         switch ext {
-        case "jpg", "jpeg": return "image/jpeg"
-        case "png": return "image/png"
-        case "heic": return "image/heic"
-        case "mp4": return "video/mp4"
-        case "mov": return "video/quicktime"
-        case "m4a": return "audio/mp4"
-        case "mp3": return "audio/mpeg"
-        case "aac": return "audio/aac"
-        case "wav": return "audio/wav"
-        case "wma": return "audio/x-ms-wma"
-        default: return "application/octet-stream"
+        case "jpg", "jpeg":
+            return "image/jpeg"
+        case "png":
+            return "image/png"
+        case "heic":
+            return "image/heic"
+        case "mp4":
+            return "video/mp4"
+        case "mov":
+            return "video/quicktime"
+        case "m4a":
+            return "audio/mp4"
+        case "mp3":
+            return "audio/mpeg"
+        case "aac":
+            return "audio/aac"
+        case "wav":
+            return "audio/wav"
+        case "wma":
+            return "audio/x-ms-wma"
+        default:
+            return "application/octet-stream"
         }
     }
 
-    private func writeTemporaryBody(_ data: Data, id: String) throws -> URL {
+    private func writeTemporaryBody(
+        _ data: Data,
+        id: String
+    ) throws -> URL {
+
         let directory = FileManager.default.temporaryDirectory
-        let url = directory.appendingPathComponent("metadata_\(id).body")
-        try data.write(to: url, options: .atomic)
+
+        let url = directory.appendingPathComponent(
+            "metadata_\(id).body"
+        )
+
+        try data.write(
+            to: url,
+            options: .atomic
+        )
+
         return url
     }
 
     private func uploadError(_ message: String) -> NSError {
+
         NSError(
             domain: "IOSBackgroundUpload",
             code: -1,
-            userInfo: [NSLocalizedDescriptionKey: message]
+            userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]
         )
     }
 }
 
+// MARK: - Data Extension
+
 private extension Data {
+
     mutating func appendUTF8(_ string: String) {
+
         if let data = string.data(using: .utf8) {
             append(data)
         }
